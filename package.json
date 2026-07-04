@@ -1,0 +1,51 @@
+{
+  "name": "@worldcoin/next-15-template",
+  "version": "0.1.0",
+  "homepage": "https://docs.worldcoin.org/mini-apps",
+  "description": "Create a Mini App",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@coinbase/agentkit": "^0.10.4",
+    "@coinbase/agentkit-langchain": "^0.3.0",
+    "@langchain/core": "^1.2.1",
+    "@langchain/google-genai": "^2.2.0",
+    "@langchain/langgraph": "^1.4.7",
+    "@prisma/client": "^6.19.3",
+    "@worldcoin/mini-apps-ui-kit-react": "^1.0.2",
+    "@worldcoin/minikit-js": "^1.11.0",
+    "@worldcoin/minikit-react": "1.0.0",
+    "@x402/paywall": "^2.17.0",
+    "clsx": "^2.1.1",
+    "iconoir-react": "^7.11.0",
+    "lucide-react": "^1.22.0",
+    "next": "15.2.6",
+    "next-auth": "^5.0.0-beta.25",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1",
+    "recharts": "^3.9.1",
+    "tailwind-merge": "^3.2.0",
+    "viem": "^2.23.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eruda": "^3.4.1",
+    "eslint": "^9",
+    "eslint-config-next": "15.2.3",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

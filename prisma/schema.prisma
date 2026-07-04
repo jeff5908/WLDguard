@@ -1,0 +1,61 @@
+// WLDguard - Prisma Database Schema
+// This defines the architecture for our user tracking and dashboard analytics.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Points to the DATABASE_URL in your .env file
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. User Model: Tracks World ID verification and portfolio balances
+model User {
+  id            String     @id @default(uuid())
+  worldId       String     @unique // Nullifier hash from World ID
+  walletAddress String     @unique // The user's World App smart wallet
+  
+  // Track theoretical balances for the dashboard
+  wldBalance    Float      @default(0.0)
+  usdcBalance   Float      @default(0.0)
+  
+  // Relationships
+  proposals     Proposal[]
+  trades        Trade[]
+  
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+// 2. Proposal Model: Stores the trades proposed by the Gemini Agent
+model Proposal {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  type          String   // e.g., 'TRIM_WLD', 'BUY_WLD', 'HOLD'
+  description   String
+  expectedYield String
+  
+  status        String   // 'PENDING_USER_APPROVAL', 'APPROVED', 'REJECTED'
+  
+  createdAt     DateTime @default(now())
+}
+
+// 3. Trade Model: An immutable ledger of executed on-chain transactions
+model Trade {
+  id            String   @id @default(uuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  type          String   // e.g., 'SWAP_WLD_TO_USDC', 'DEPOSIT_MORPHO'
+  amountIn      Float
+  amountOut     Float
+  
+  txHash        String   @unique // The on-chain transaction receipt
+  status        String   // 'SUCCESS', 'FAILED', 'PENDING'
+  
+  createdAt     DateTime @default(now())
+}
