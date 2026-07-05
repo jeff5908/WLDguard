@@ -17,7 +17,7 @@ export const ADDRESSES = {
   MORPHO_REFERRAL_ROUTER: "0x0000000000000000000000000000000000000000", 
   
   // 🏦 YOUR LLC TREASURY WALLET (Where your Morpho commissions are sent)
-  WLDGUARD_TREASURY: "0x0000000000000000000000000000000000000000", 
+  WLDGUARD_TREASURY: "0x41e63383bc0a97a4be666264eb2ba958fac23365", 
 } as const;
 
 // Minimal ABIs necessary to interact with the contracts
