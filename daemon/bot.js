@@ -117,4 +117,6 @@ console.log("🚀 Starting WLDguard 24/7 Quant Engine...");
 console.log("=============================================");
 
 runMarketAnalysis();
-setInterval(runMarketAnalysis, 5000);
+
+// Switched from 5 seconds (5000) to 5 minutes (300000 milliseconds) for Production Beta
+setInterval(runMarketAnalysis, 300000);
