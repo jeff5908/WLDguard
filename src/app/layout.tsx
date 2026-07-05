@@ -1,4 +1,4 @@
-// import './globals.css';
+import './globals.css';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -12,10 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div id="html-mock" lang="en">
-      <div id="body-mock" className="bg-slate-950 text-white antialiased min-h-screen">
+    <html lang="en">
+      <body className="bg-slate-950 text-white antialiased min-h-screen">
         {children}
-      </div>
-    </div>
+      </body>
+    </html>
   );
 }
