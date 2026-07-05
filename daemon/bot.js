@@ -1,6 +1,6 @@
 /**
  * WLDguard 24/7 Quant Engine (Daemon)
- * Now connected to PostgreSQL to broadcast signals to the frontend!
+ * Connected to PostgreSQL and CoinGecko (U.S. Compliant API)
  */
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
@@ -36,14 +36,34 @@ function calculateBollingerBands(prices, period = 20, multiplier = 2.0) {
 }
 
 // ==========================================
-// 2. SIMULATED LIVE MARKET FEED
+// 2. LIVE MARKET FEED (COINGECKO API)
 // ==========================================
-const historicalPrices = [
-    2.00, 2.01, 2.02, 1.99, 1.98, 2.05, 2.10, 2.15, 2.12, 2.11, 
-    2.14, 2.16, 2.18, 2.20, 2.25, 2.30, 2.35, 2.40, 2.45, 2.50
-];
-const futureTicks = [2.95, 2.70, 2.10, 1.40, 1.90];
-let tickIndex = 0;
+let historicalPrices = [];
+
+async function fetchLiveMarketData() {
+    try {
+        // Fetch the last 1 day of OHLC (Open, High, Low, Close) data for WLD
+        // CoinGecko returns this in 30-minute intervals (candles)
+        const response = await fetch('https://api.coingecko.com/api/v3/coins/worldcoin-wld/ohlc?vs_currency=usd&days=1');
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+
+        // Extract closing prices (index 4 in CoinGecko's array structure)
+        // We slice the last 20 candles to give our AI the last 10 hours of price action
+        const recentCandles = data.slice(-20);
+        historicalPrices = recentCandles.map(candle => parseFloat(candle[4]));
+
+        // The last item in the array is the most current live price
+        return historicalPrices[historicalPrices.length - 1];
+    } catch (error) {
+        console.error("⚠️ Error fetching live WLD price from CoinGecko:", error.message);
+        return null;
+    }
+}
 
 // ==========================================
 // 3. THE DECISION ENGINE & DATABASE BROADCASTER
@@ -51,16 +71,20 @@ let tickIndex = 0;
 async function runMarketAnalysis() {
     console.log(`\n[${new Date().toLocaleTimeString()}] 🤖 WLDguard Daemon Waking Up...`);
     
-    if (tickIndex < futureTicks.length) {
-        historicalPrices.push(futureTicks[tickIndex]);
-        tickIndex++;
+    // Fetch real-time data from CoinGecko
+    const livePrice = await fetchLiveMarketData();
+
+    if (!livePrice || historicalPrices.length < 20) {
+        console.log("⏳ Waiting for sufficient market data...");
+        return;
     }
     
-    const livePrice = historicalPrices[historicalPrices.length - 1];
     console.log(`📊 Live WLD Price: $${livePrice.toFixed(3)}`);
 
     const bands = calculateBollingerBands(historicalPrices, 20, 2.0);
     if (!bands) return;
+
+    console.log(`📈 Upper Band: $${bands.upperBand.toFixed(3)} | 📉 Lower Band: $${bands.lowerBand.toFixed(3)}`);
 
     let action = 'HOLD';
     let description = '';
@@ -68,12 +92,12 @@ async function runMarketAnalysis() {
 
     if (livePrice > bands.upperBand) {
         action = 'TRIM_WLD';
-        description = `Market Overbought at $${livePrice.toFixed(2)}. Trimming 40% WLD into USDC to lock in profits.`;
+        description = `Market Overbought at $${livePrice.toFixed(3)}. Trimming 40% WLD into USDC to lock in profits.`;
         expectedYield = '13.34% APY (USDC Vault)';
         console.log(`🚨 [SIGNAL] WLD is OVERBOUGHT! Preparing Database Broadcast...`);
     } else if (livePrice < bands.lowerBand) {
         action = 'BUY_WLD';
-        description = `Market Oversold at $${livePrice.toFixed(2)}. Buying WLD with parked USDC.`;
+        description = `Market Oversold at $${livePrice.toFixed(3)}. Buying WLD with parked USDC.`;
         expectedYield = '13.57% APY (WLD Vault)';
         console.log(`🚨 [SIGNAL] WLD is OVERSOLD! Preparing Database Broadcast...`);
     } else {
@@ -113,10 +137,10 @@ async function runMarketAnalysis() {
 // INITIALIZATION
 // ==========================================
 console.log("=============================================");
-console.log("🚀 Starting WLDguard 24/7 Quant Engine...");
+console.log("🚀 Starting WLDguard 24/7 Quant Engine (CoinGecko Live API)...");
 console.log("=============================================");
 
 runMarketAnalysis();
 
-// Switched from 5 seconds (5000) to 5 minutes (300000 milliseconds) for Production Beta
+// 5 minutes (300000 milliseconds) for Production Beta
 setInterval(runMarketAnalysis, 300000);
