@@ -1,19 +1,15 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+// Swapped the '@' shortcut for the exact relative path!
+import { prisma } from '../../../lib/prisma';
 
 export async function GET() {
   try {
-    // Count total registered users in the database
     const userCount = await prisma.user.count();
-    
-    // Sum up the wldBalance of every user in the database
     const aggregations = await prisma.user.aggregate({
-      _sum: {
-        wldBalance: true,
-      },
+      _sum: { wldBalance: true },
     });
 
-    // Genuine baseline: Starting with the Founder (You) and your initial 100 WLD!
+    // Genuine baseline: Starting with the Founder and your initial 100 WLD!
     const baseUsers = 1;
     const baseWld = 100;
 
@@ -23,7 +19,6 @@ export async function GET() {
     return NextResponse.json({ totalUsers, totalWld });
   } catch (error) {
     console.error("Stats API Error:", error);
-    // Safe fallback if the database connection temporarily drops
     return NextResponse.json({ totalUsers: 1, totalWld: 100 });
   }
 }
