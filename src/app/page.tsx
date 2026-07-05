@@ -227,15 +227,22 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white font-sans pb-12 selection:bg-blue-500/30">
-{/* HEADER */}
-      <header className="flex justify-between items-center mb-8">
-        <h1 className="text-xl font-bold flex items-center gap-2">
+  {/* HEADER */}
+  <div className="w-full max-w-md mx-auto pt-6 px-4 pb-2">
+    <header className="flex justify-between items-center">
+      <div className="flex flex-col">
+        <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
           <TrendingUp className="text-blue-500" /> WLDguard
         </h1>
-        <div className="bg-slate-900 px-4 py-2 rounded-full border border-slate-800 text-sm">
-          0x...a1b2
-        </div>
-      </header>
+        <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">
+          Protect. Earn. Compound WLD.
+        </span>
+      </div>
+      <div className="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-xs font-mono text-slate-400">
+        0x...a1b2
+      </div>
+    </header>
+  </div>
       
       {/* DASHBOARD STATS */}
       <section className="px-6 max-w-md mx-auto mb-6">
