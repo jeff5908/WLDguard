@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import "./globals.css";
+import "./globals.css"; // <-- THIS IS THE MAGIC LINE WE WERE MISSING!
 import MiniKitProvider from "../components/MiniKitProvider";
 
 export const metadata: Metadata = {
@@ -15,7 +15,6 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased bg-slate-950 text-slate-50 selection:bg-indigo-500/30">
-        {/* We wrap the entire app in the MiniKitProvider to wake up the World App SDK */}
         <MiniKitProvider>
           {children}
         </MiniKitProvider>
