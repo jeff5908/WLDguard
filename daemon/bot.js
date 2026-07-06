@@ -110,11 +110,20 @@ async function runMarketAnalysis() {
 
     // 📡 BROADCAST TO ALL USERS IN THE DATABASE
     try {
-        const users = await prisma.user.findMany();
+        let users = await prisma.user.findMany();
         
+        // NEW: Auto-create a test user if the database is empty!
         if (users.length === 0) {
-            console.log("⚠️ No users found in database yet. Waiting for signups.");
-            return;
+            console.log("⚠️ No users found. Creating 'Beta Tester' profile for Closed Beta...");
+            const testUser = await prisma.user.create({
+                data: {
+                    worldId: "beta_tester_001",
+                    walletAddress: "0xBetaWallet",
+                    wldBalance: 100,
+                    usdcBalance: 0
+                }
+            });
+            users = [testUser]; // Now the loop has someone to broadcast to!
         }
 
         console.log(`📡 Broadcasting signal to ${users.length} active users...`);
