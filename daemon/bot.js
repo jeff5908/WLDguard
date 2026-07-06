@@ -1,13 +1,6 @@
-/**
- * WLDguard 24/7 Quant Engine (Daemon)
- * Connected to PostgreSQL and CoinGecko (U.S. Compliant API)
- */
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
-// ==========================================
-// 1. QUANTITATIVE MATH ENGINE
-// ==========================================
 function calculateSMA(prices, period) {
     if (prices.length < period) return null;
     const slice = prices.slice(-period);
@@ -35,15 +28,10 @@ function calculateBollingerBands(prices, period = 20, multiplier = 2.0) {
     };
 }
 
-// ==========================================
-// 2. LIVE MARKET FEED (COINGECKO API)
-// ==========================================
 let historicalPrices = [];
 
 async function fetchLiveMarketData() {
     try {
-        // Fetch the last 1 day of OHLC (Open, High, Low, Close) data for WLD
-        // CoinGecko returns this in 30-minute intervals (candles)
         const response = await fetch('https://api.coingecko.com/api/v3/coins/worldcoin-wld/ohlc?vs_currency=usd&days=1');
         
         if (!response.ok) {
@@ -51,13 +39,9 @@ async function fetchLiveMarketData() {
         }
         
         const data = await response.json();
-
-        // Extract closing prices (index 4 in CoinGecko's array structure)
-        // We slice the last 20 candles to give our AI the last 10 hours of price action
         const recentCandles = data.slice(-20);
         historicalPrices = recentCandles.map(candle => parseFloat(candle[4]));
 
-        // The last item in the array is the most current live price
         return historicalPrices[historicalPrices.length - 1];
     } catch (error) {
         console.error("⚠️ Error fetching live WLD price from CoinGecko:", error.message);
@@ -65,13 +49,9 @@ async function fetchLiveMarketData() {
     }
 }
 
-// ==========================================
-// 3. THE DECISION ENGINE & DATABASE BROADCASTER
-// ==========================================
 async function runMarketAnalysis() {
     console.log(`\n[${new Date().toLocaleTimeString()}] 🤖 WLDguard Daemon Waking Up...`);
     
-    // Fetch real-time data from CoinGecko
     const livePrice = await fetchLiveMarketData();
 
     if (!livePrice || historicalPrices.length < 20) {
@@ -105,14 +85,12 @@ async function runMarketAnalysis() {
         description = `Market is Stable at $${livePrice.toFixed(3)}. Let your assets continue earning passive vault yield.`;
         expectedYield = '13.57% APY (WLD Vault)';
         console.log(`🛡️ Market is Stable at $${livePrice.toFixed(3)}. Preparing Database Broadcast for Dashboard...`);
-        // We removed the 'return;' here so it pushes the live price to the UI!
+        // 🚨 CRITICAL FIX: The "return;" has been removed from here so it ACTUALLY writes to the DB!
     }
 
-    // 📡 BROADCAST TO ALL USERS IN THE DATABASE
     try {
         let users = await prisma.user.findMany();
         
-        // NEW: Auto-create a test user if the database is empty!
         if (users.length === 0) {
             console.log("⚠️ No users found. Creating 'Beta Tester' profile for Closed Beta...");
             const testUser = await prisma.user.create({
@@ -123,7 +101,7 @@ async function runMarketAnalysis() {
                     usdcBalance: 0
                 }
             });
-            users = [testUser]; // Now the loop has someone to broadcast to!
+            users = [testUser]; 
         }
 
         console.log(`📡 Broadcasting signal to ${users.length} active users...`);
@@ -139,20 +117,17 @@ async function runMarketAnalysis() {
                 }
             });
         }
-        console.log(`✅ Success! The Frontend UI will now show the 'Sign & Execute' button to users.`);
+        console.log(`✅ Success! The Frontend UI will now show the '$${livePrice.toFixed(3)}' price.`);
     } catch (error) {
-        console.log(`⚠️ Database connection skipped for local testing (No live users to broadcast to yet).`);
+        console.log(`⚠️ Database connection skipped for local testing:`, error.message);
     }
 }
 
-// ==========================================
-// INITIALIZATION
-// ==========================================
 console.log("=============================================");
 console.log("🚀 Starting WLDguard 24/7 Quant Engine (CoinGecko Live API)...");
 console.log("=============================================");
 
 runMarketAnalysis();
 
-// 5 minutes (300000 milliseconds) for Production Beta
+// 5 minutes (300000 milliseconds)
 setInterval(runMarketAnalysis, 300000);
