@@ -101,8 +101,11 @@ async function runMarketAnalysis() {
         expectedYield = '13.57% APY (WLD Vault)';
         console.log(`🚨 [SIGNAL] WLD is OVERSOLD! Preparing Database Broadcast...`);
     } else {
-        console.log(`🛡️ Market is Stable. Going back to sleep...`);
-        return; // We only write to the database when action is needed!
+        action = 'HOLD';
+        description = `Market is Stable at $${livePrice.toFixed(3)}. Let your assets continue earning passive vault yield.`;
+        expectedYield = '13.57% APY (WLD Vault)';
+        console.log(`🛡️ Market is Stable at $${livePrice.toFixed(3)}. Preparing Database Broadcast for Dashboard...`);
+        // We removed the 'return;' here so it pushes the live price to the UI!
     }
 
     // 📡 BROADCAST TO ALL USERS IN THE DATABASE
