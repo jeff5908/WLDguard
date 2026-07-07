@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma'; 
 
 // 🚨 CRITICAL FIX: Tell Vercel to NEVER cache this API route!
-// Without this, Next.js freezes the response and serves stale data.
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -29,7 +28,7 @@ export async function POST(req: Request) {
         type: latestProposal.type,
         description: latestProposal.description,
         expectedYield: latestProposal.expectedYield,
-        // We add dummy txData here just so the UI "Sign & Execute" button doesn't break
+        // Mock txData to keep the button functional for the UI test
         txData: [{ to: "0xMock", data: "0x00" }] 
       }
     });
