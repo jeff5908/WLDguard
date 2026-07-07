@@ -5,14 +5,23 @@ import { prisma } from '../../../lib/prisma';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// 1. Handles the button click from the World App (POST)
 export async function POST(req: Request) {
+  return await fetchLatestSignal();
+}
+
+// 2. Handles direct visits from your Chromebook browser for easy testing! (GET)
+export async function GET(req: Request) {
+  return await fetchLatestSignal();
+}
+
+// Core database logic
+async function fetchLatestSignal() {
   try {
-    // 1. Fetch the absolute latest proposal your Daemon just pushed to the database
     const latestProposal = await prisma.proposal.findFirst({
       orderBy: { createdAt: 'desc' },
     });
 
-    // 2. If the database is empty (Daemon hasn't triggered yet)
     if (!latestProposal) {
       return NextResponse.json({
         status: 'neutral',
@@ -21,20 +30,21 @@ export async function POST(req: Request) {
       });
     }
 
-    // 3. If there IS a signal, send it to the frontend UI!
     return NextResponse.json({
       status: 'success',
       proposal: {
         type: latestProposal.type,
         description: latestProposal.description,
         expectedYield: latestProposal.expectedYield,
-        // Mock txData to keep the button functional for the UI test
         txData: [{ to: "0xMock", data: "0x00" }] 
       }
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch signal from database' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Failed to fetch signal from database',
+      details: error.message 
+    }, { status: 500 });
   }
 }
