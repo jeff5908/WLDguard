@@ -99,7 +99,7 @@ export default function App() {
     setIsMounted(true);
     setDebugLog("Component Mounted. Fetching live stats...");
     
-    // RESTORED: Fetching actual live stats from your database!
+    // Fetching actual live stats from your database
     fetch('/api/stats')
       .then(res => {
         if (res.ok) return res.json();
@@ -133,7 +133,7 @@ export default function App() {
     try {
       const userAddress = MiniKit.walletAddress;
 
-      // RESTORED: Fetching actual dynamic pricing from your backend API
+      // Fetching actual dynamic pricing from your backend API
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
         headers: { 
@@ -149,7 +149,7 @@ export default function App() {
       setProposal(data.proposal);
       setDebugLog("Dynamic proposal received from AI Backend.");
     } catch (error: any) {
-      // Fallback only if your API is asleep: Uses the exact, proven 1-wei WLD payload that passes the simulation
+      // Fallback: Uses the exact, proven 1-wei WLD payload that passes the simulation
       setProposal({ 
         type: 'Yield Optimizer', 
         description: 'Demo Strategy: Securely route capital using approved pathways.', 
@@ -212,25 +212,39 @@ export default function App() {
     });
   };
 
-  // Safe mounting to prevent Vercel crashes
   if (!isMounted) {
     return (
-      <main className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <main className="min-h-screen bg-slate-950 flex items-center justify-center" style={{ backgroundColor: '#020617' }}>
         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-12 overflow-x-hidden">
+    <main 
+      className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-12 overflow-x-hidden"
+      style={{ backgroundColor: '#020617', color: '#f8fafc', minHeight: '100vh' }}
+    >
       
       {/* 🚀 THE GLOBAL DASHBOARD */}
       <section className="pt-6 pb-4 px-6 max-w-md mx-auto">
         <header className="text-center mb-5 flex flex-col items-center justify-center">
           <div className="flex items-center justify-center gap-2">
-            {/* Carefully constrained inline SVG instead of external lucide-react imports */}
-            <svg className="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+            {/* Hard-coded constraints on the SVG so it can NEVER blow up the screen again */}
+            <svg 
+              width="24" 
+              height="24" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2" 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              className="text-blue-500 flex-shrink-0"
+              style={{ minWidth: '24px', minHeight: '24px' }}
+            >
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+              <polyline points="16 6 23 6 23 13"></polyline>
             </svg>
             <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent tracking-tight">
               WLDguard
@@ -271,7 +285,8 @@ export default function App() {
             </div>
           </div>
           
-          <div className="h-40 w-full -ml-2">
+          {/* Added hard-coded height to ensure the chart renders even if CSS is slow to load */}
+          <div className="h-40 w-full -ml-2" style={{ height: '160px', width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={performanceData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                 <defs>
