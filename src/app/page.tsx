@@ -95,6 +95,16 @@ export default function App() {
   const [debugLog, setDebugLog] = useState<string>("System Ready. Awaiting user action.");
   const [activeIntent, setActiveIntent] = useState<any>(null);
 
+  // 🚨 UI FIX: Inject Tailwind dynamically to guarantee styling regardless of Vercel config
+  useEffect(() => {
+    if (!document.getElementById('tailwind-cdn')) {
+      const script = document.createElement('script');
+      script.id = 'tailwind-cdn';
+      script.src = 'https://cdn.tailwindcss.com';
+      document.head.appendChild(script);
+    }
+  }, []);
+
   useEffect(() => {
     setIsMounted(true);
     setDebugLog("Component Mounted. Fetching live stats...");
@@ -152,7 +162,7 @@ export default function App() {
       // Fallback: Uses the exact, proven 1-wei WLD payload that passes the simulation
       setProposal({ 
         type: 'Yield Optimizer', 
-        description: 'Demo Strategy: Securely route capital using approved pathways.', 
+        description: 'Market Overbought at $0.48. Securely trimming position to lock in profits and route capital to USDC yield.', 
         expectedYield: '13.34% APY',
         txData: [{
           address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token
@@ -216,32 +226,25 @@ export default function App() {
   if (!isMounted) {
     return (
       <main className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#020617' }}>
-        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <div style={{ width: '32px', height: '32px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
       </main>
     );
   }
 
   return (
     <>
-      {/* 🚨 FAILSAFE STYLE INJECTION: Absolutely guarantees dark mode layout defaults */}
       <style dangerouslySetInnerHTML={{__html: `
+        @keyframes spin { 100% { transform: rotate(360deg); } }
         html, body {
           margin: 0;
           padding: 0;
-          background-color: #020617;
-          color: #f8fafc;
-          box-sizing: border-box;
+          background-color: #020617 !important;
+          color: #f8fafc !important;
           font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-        *, *::before, *::after {
-          box-sizing: border-box;
         }
       `}} />
 
-      <main 
-        className="min-h-screen text-slate-50 selection:bg-emerald-500/30 pb-12 overflow-x-hidden flex flex-col items-center w-full"
-        style={{ backgroundColor: '#020617' }}
-      >
+      <main className="min-h-screen text-slate-50 selection:bg-emerald-500/30 pb-12 overflow-x-hidden flex flex-col items-center w-full bg-slate-950">
         
         {/* 🚀 THE GLOBAL DASHBOARD CONTAINER */}
         <div className="w-full max-w-md mx-auto flex flex-col gap-5 px-4 pt-6">
@@ -249,24 +252,15 @@ export default function App() {
           {/* HEADER */}
           <header className="flex flex-row justify-between items-center w-full">
             <div className="flex flex-col">
-              <h1 className="text-2xl font-extrabold flex flex-row items-center gap-2 tracking-tight m-0"
-                  style={{ 
-                    backgroundImage: 'linear-gradient(to right, #60a5fa, #34d399)', 
-                    WebkitBackgroundClip: 'text', 
-                    WebkitTextFillColor: 'transparent',
-                    color: 'transparent'
-                  }}>
-                {/* SVG Arrow explicitly boxed and sized */}
+              <h1 className="text-2xl font-extrabold flex flex-row items-center gap-2 tracking-tight m-0 bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent">
                 <svg 
-                  width="24" 
-                  height="24" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   stroke="#3b82f6" 
                   strokeWidth="2.5" 
                   strokeLinecap="round" 
                   strokeLinejoin="round" 
-                  style={{ flexShrink: 0, display: 'block' }}
+                  style={{ width: '24px', height: '24px', flexShrink: 0 }}
                 >
                   <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                   <polyline points="16 6 23 6 23 13"></polyline>
@@ -283,9 +277,9 @@ export default function App() {
           </header>
 
           {/* 🚨 DIAGNOSTIC CONSOLE */}
-          <div className="bg-black border border-slate-800 p-2.5 rounded-lg w-full shadow-inner">
-            <p className="text-[10px] text-emerald-400 font-mono truncate m-0 flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <div className="bg-black border border-slate-800 p-3 rounded-lg w-full shadow-inner">
+            <p className="text-[10px] text-emerald-400 font-mono truncate m-0 flex flex-row items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse block"></span>
               LOG: {debugLog}
             </p>
           </div>
@@ -392,31 +386,33 @@ export default function App() {
               )}
               
               {activeTab === 'agent' && !txHash && (
-                <div className="flex flex-col h-full w-full">
+                <div className="flex flex-col h-full w-full flex-grow">
                   {!proposal ? (
-                    <div className="flex flex-col relative z-10 animate-in fade-in duration-300 h-full">
+                    <div className="flex flex-col relative z-10 animate-in fade-in duration-300 h-full flex-grow">
                       <h2 className="text-lg font-semibold text-slate-100 m-0 mb-3">Immediate Action</h2>
                       <p className="text-xs text-slate-400 mb-6 leading-relaxed m-0">
                         Maximize your WLD growth and income with automated AI strategies. WLDguard manages the risk while capturing elite WLD and USDC yields on Morpho.
                       </p>
                       
-                      <button 
-                        onClick={handleRunAgent}
-                        disabled={loading || isExecuting}
-                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex flex-row items-center justify-center gap-2 mt-auto"
-                      >
-                        {loading ? (
-                          <span className="animate-pulse flex flex-row items-center gap-2">
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Agent Processing...
-                          </span>
-                        ) : (
-                          "Optimize My WLD Now"
-                        )}
-                      </button>
+                      <div className="mt-auto">
+                        <button 
+                          onClick={handleRunAgent}
+                          disabled={loading || isExecuting}
+                          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex flex-row items-center justify-center gap-2"
+                        >
+                          {loading ? (
+                            <span className="animate-pulse flex flex-row items-center gap-2">
+                              <div style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                              Agent Processing...
+                            </span>
+                          ) : (
+                            "Optimize My WLD Now"
+                          )}
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10 h-full">
+                    <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10 h-full flex-grow">
                       <div className="bg-black/40 p-5 rounded-2xl border border-blue-500/30 mb-5">
                         <div className="flex flex-row justify-between items-center mb-4">
                           <span className="text-xs font-bold text-blue-400 uppercase tracking-wider m-0">Proposed Action</span>
@@ -438,7 +434,7 @@ export default function App() {
                         >
                           {isExecuting ? (
                             <span className="animate-pulse flex flex-row items-center gap-2">
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              <div style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                               ⏳ Waiting for Wallet...
                             </span>
                           ) : (
@@ -460,7 +456,7 @@ export default function App() {
               )}
 
               {activeTab === 'intent' && !txHash && (
-                <div className="flex flex-col animate-in fade-in duration-300 relative z-10 h-full">
+                <div className="flex flex-col animate-in fade-in duration-300 relative z-10 h-full flex-grow">
                   <div className="flex flex-row items-center gap-3 mb-4">
                     <span className="text-xl">🛡️</span>
                     <h2 className="text-lg font-semibold text-slate-100 m-0">Future Protection</h2>
@@ -470,7 +466,7 @@ export default function App() {
                     <div className="bg-indigo-950/30 border border-indigo-500/30 p-5 rounded-2xl mt-2 mb-auto">
                       <div className="flex flex-row justify-between items-center mb-3">
                         <span className="text-xs text-indigo-300 uppercase tracking-wider font-bold flex flex-row items-center gap-2 m-0">
-                          <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
+                          <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse block"></span>
                           Network Intent Active
                         </span>
                       </div>
@@ -482,16 +478,18 @@ export default function App() {
                       </p>
                     </div>
                   ) : (
-                    <div className="flex flex-col h-full">
+                     <div className="flex flex-col h-full flex-grow">
                       <p className="text-xs text-slate-400 mb-6 leading-relaxed m-0">
                         Projected Upper Bollinger Band: <span className="text-indigo-400 font-bold">$0.48</span>. Pre-sign an off-chain intent to automatically lock in profits if the market spikes while you sleep.
                       </p>
-                      <button 
-                        onClick={handleSignIntent}
-                        className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 py-4 rounded-xl font-bold text-sm text-indigo-300 transition-all shadow-lg active:scale-95 flex flex-row items-center justify-center gap-2 mt-auto m-0"
-                      >
-                        Sign $0.48 Limit Intent
-                      </button>
+                      <div className="mt-auto">
+                        <button 
+                          onClick={handleSignIntent}
+                          className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 py-4 rounded-xl font-bold text-sm text-indigo-300 transition-all shadow-lg active:scale-95 flex flex-row items-center justify-center gap-2 m-0"
+                        >
+                          Sign $0.48 Limit Intent
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
