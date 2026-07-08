@@ -1,11 +1,9 @@
 'use client';
 
-/* STREAMING_CHUNK: Importing dependencies and official MiniKit SDK... */
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { MiniKit } from '@worldcoin/minikit-js';
 
-/* STREAMING_CHUNK: Initializing mock data for the performance chart... */
 // 90-Day Seed Data showing the WLDguard Alpha (Outperformance)
 const performanceData = [
 { month: 'Jan', passive: 10000, managed: 10000 },
@@ -17,7 +15,6 @@ const performanceData = [
 { month: 'Jul', passive: 11000, managed: 14850 },
 ];
 
-/* STREAMING_CHUNK: Defining the Custom Tooltip component... */
 // Custom Tooltip for the dark UI
 const CustomTooltip = ({ active, payload, label }: any) => {
 if (active && payload && payload.length) {
@@ -45,7 +42,6 @@ return (
 return null;
 };
 
-/* STREAMING_CHUNK: Setting up the main App component state variables... */
 export default function App() {
 const [isMounted, setIsMounted] = useState(false);
 
@@ -66,7 +62,6 @@ const [debugLog, setDebugLog] = useState("System Ready. Awaiting user action.");
 // Intent State
 const [activeIntent, setActiveIntent] = useState(null);
 
-/* STREAMING_CHUNK: Configuring useEffect for mounting, fetching stats, and MiniKit installation... */
 useEffect(() => {
 setIsMounted(true);
 setDebugLog("Component Mounted. Fetching stats...");
@@ -90,7 +85,7 @@ try {
 }
 
 try {
-  // 🚨 REPLACE WITH YOUR REAL APP ID BEFORE DEPLOYING
+  // 🚨 REPLACE WITH YOUR REAL APP ID
   MiniKit.install('app_dedd1afaa8a8e8f839438c78814b996f');
   setDebugLog("Official NPM MiniKit Installed.");
 } catch (e) {
@@ -100,7 +95,6 @@ try {
 
 }, []);
 
-/* STREAMING_CHUNK: Adding the hardware event listener for transaction responses... */
 // Listen for native hardware responses
 useEffect(() => {
 if (!isMounted) return;
@@ -130,7 +124,6 @@ return () => window.removeEventListener('message', handleMessage);
 
 }, [isMounted]);
 
-/* STREAMING_CHUNK: Defining the handleRunAgent function to generate the payload... */
 const handleRunAgent = async () => {
 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
 setLoading(true);
@@ -192,7 +185,6 @@ try {
 
 };
 
-/* STREAMING_CHUNK: Defining handleExecute to trigger the World App hardware bridge... */
 const handleExecute = async () => {
 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
 
@@ -238,7 +230,6 @@ try {
 
 };
 
-/* STREAMING_CHUNK: Defining the Intent handler and loading states... */
 const handleSignIntent = () => {
 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
 setActiveIntent({
@@ -247,6 +238,7 @@ amount: "40%"
 });
 };
 
+// 🚨 FIXED: This is the block that was missing the loading HTML!
 if (!isMounted) {
 return (
 
@@ -255,7 +247,6 @@ return (
 );
 }
 
-/* STREAMING_CHUNK: Rendering the Global Dashboard header and metrics... */
 return (
 
 
@@ -291,19 +282,17 @@ return (
       </div>
     </div>
 
-
-/* STREAMING_CHUNK: Rendering the historical performance AreaChart... */
-
-
-
-Backtested Strategy Alpha
-WLDguard vs. Passive
-
-
-+48.5% Outperformance
-
-
-
+    <div className="bg-slate-900/40 border border-slate-800 p-4 rounded-3xl shadow-xl backdrop-blur-sm mb-2">
+      <div className="flex justify-between items-end mb-4">
+        <div>
+          <h3 className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Backtested Strategy Alpha</h3>
+          <p className="text-lg font-bold text-slate-200">WLDguard vs. Passive</p>
+        </div>
+        <div className="text-right">
+          <span className="inline-block bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded">+48.5% Outperformance</span>
+        </div>
+      </div>
+      
       <div className="h-40 w-full -ml-2">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={performanceData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
@@ -329,28 +318,25 @@ WLDguard vs. Passive
     </div>
   </section>
 
+  <section className="px-6 max-w-md mx-auto">
+    <div className="bg-slate-900 border border-slate-700 p-1.5 rounded-2xl shadow-lg mb-4 flex">
+      <button 
+        onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); setActiveTab('agent'); }}
+        className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'agent' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+      >
+        Step 1: 🤖 AI Optimizer
+      </button>
+      <button 
+        onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); setActiveTab('intent'); }}
+        className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'intent' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+      >
+        Step 2: 🛡️ Auto-Protect
+      </button>
+    </div>
 
-/* STREAMING_CHUNK: Rendering the interactive User Action Area (Agent vs Intent)... */
-
-
-<button
-onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); setActiveTab('agent'); }}
-className={flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'agent' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}}
->
-Step 1: 🤖 AI Optimizer
-
-<button
-onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); setActiveTab('intent'); }}
-className={flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === 'intent' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}}
->
-Step 2: 🛡️ Auto-Protect
-
-
-
-/* STREAMING_CHUNK: Rendering Execution States (Loading, Error, Success, Idle)... */
-
-
-
+    <div className="bg-slate-900 border border-slate-700 p-5 rounded-3xl shadow-2xl relative overflow-hidden min-h-[240px]">
+      <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
       {errorMsg && (
         <div className="relative z-10 bg-red-900/50 border border-red-500/50 p-3 rounded-xl text-xs text-red-200 mb-4 font-mono break-words">
           {errorMsg}
