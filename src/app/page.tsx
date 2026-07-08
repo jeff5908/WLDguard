@@ -165,7 +165,7 @@ export default function App() {
             "type": "function"
           }],
           functionName: 'approve',
-          args: ['0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E', '0'] // Uniswap Router
+          args: ['0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E', '1000000'] // Uniswap Router
         }]
       });
       setDebugLog("Generated safe approve(0) simulation payload.");
