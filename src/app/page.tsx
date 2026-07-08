@@ -17,14 +17,14 @@ export default function App() {
   }, []);
 
   const handleExecute = async () => {
-    setStatus("Requesting native drawer...");
+    setStatus("Requesting native drawer & simulating...");
 
-    // 🚨 Dev Mode sometimes hides your address until formal auth. 
     // We fallback to Vitalik's public address for this 1 wei test!
     const targetAddress = MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 
     try {
-      await MiniKit.commandsAsync.sendTransaction({
+      // We await the FULL transaction response
+      const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({
         transaction: [{
           address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token on World Chain
           abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
@@ -34,13 +34,20 @@ export default function App() {
         }],
         reference: `wldguard-beta-${Date.now()}` // Unique ID so it doesn't get cached
       });
-      setStatus("Payload successfully handed to hardware!");
+      
+      // Explicitly check what the hardware's simulation decided
+      if (finalPayload.status === 'error') {
+        setStatus(`Simulation Failed: ${JSON.stringify(finalPayload)}`);
+      } else {
+        setStatus("Success! Hardware accepted and executed the payload.");
+      }
+      
     } catch (e: any) {
       setStatus("Execution Exception: " + e.message);
     }
   };
 
-  // 🚨 This guarantees Vercel won't crash
+  // Safe mounting to prevent Vercel crashes
   if (!isMounted) {
     return (
       <main className="min-h-screen bg-slate-950 flex items-center justify-center">
