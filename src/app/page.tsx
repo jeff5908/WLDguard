@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { MiniKit } from '@worldcoin/minikit-js'; // 🚨 THE OFFICIAL NPM BRIDGE
 
 // 90-Day Seed Data showing the WLDguard Alpha (Outperformance)
 const performanceData = [
@@ -55,8 +56,6 @@ export default function App() {
   
   // DIAGNOSTIC STATE
   const [debugLog, setDebugLog] = useState<string>("System Ready. Awaiting user action.");
-
-  // Intent State
   const [activeIntent, setActiveIntent] = useState<any>(null);
 
   useEffect(() => {
@@ -81,14 +80,12 @@ export default function App() {
       console.warn("Live stats fetch bypassed.");
     }
 
-    if (typeof window !== 'undefined' && (window as any).MiniKit) {
-      try {
-        // 🚨 ADD YOUR APP ID HERE
-        (window as any).MiniKit.install('app_dedd1afaa8a8e8f839438c78814b996f');
-        setDebugLog("MiniKit SDK Initialized.");
-      } catch (e) {
-        console.warn("MiniKit already installed or incompatible.");
-      }
+    try {
+      // 🚨 CRITICAL: DOUBLE CHECK THIS IS YOUR REAL APP ID!
+      MiniKit.install('app_dedd1afaa8a8e8f839438c78814b996f');
+      setDebugLog("MiniKit NPM SDK Initialized.");
+    } catch (e) {
+      console.warn("MiniKit already installed or incompatible.");
     }
   }, []);
 
@@ -128,8 +125,7 @@ export default function App() {
     setDebugLog("Pinging Quant Backend API...");
     
     try {
-      const MiniKitObj = (window as any).MiniKit;
-      const userAddress = (MiniKitObj && typeof MiniKitObj.isInstalled === 'function' && MiniKitObj.isInstalled()) ? MiniKitObj.walletAddress : "0x0000000000000000000000000000000000000000";
+      const userAddress = MiniKit.isInstalled() ? MiniKit.walletAddress : "0x0000000000000000000000000000000000000000";
 
       let data;
       try {
@@ -151,13 +147,13 @@ export default function App() {
       setProposal(data.proposal);
       setDebugLog("Proposal received from AI.");
     } catch (error: any) {
-      // 🚨 CRITICAL BYPASS: approve(0) is mathematically guaranteed to pass blockchain simulations.
+      // 🚨 CRITICAL BYPASS: USDC Contract targeting Uniswap V3 Router
       setProposal({ 
         type: 'Yield Optimizer', 
         description: 'Demo Strategy: Securely route capital using approved pathways.', 
         expectedYield: '13.34% APY',
         txData: [{
-          address: '0x79A02482A880bCE3F13e09Da970dC34db4CD24d1', // 🚨 SWITCHED TO USDC TO BYPASS PERMIT2 BLOCK
+          address: '0x79A02482A880bCE3F13e09Da970dC34db4CD24d1', // USDC Address
           abi: [{
             "inputs": [
               { "internalType": "address", "name": "spender", "type": "address" },
@@ -169,8 +165,7 @@ export default function App() {
             "type": "function"
           }],
           functionName: 'approve',
-          // 🚨 SWAPPED VITALIK FOR UNISWAP V3 ROUTER
-          args: ['0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E', '0']
+          args: ['0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E', '0'] // Uniswap Router
         }]
       });
       setDebugLog("Generated safe approve(0) simulation payload.");
@@ -181,7 +176,6 @@ export default function App() {
 
   const handleExecute = async () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    const MiniKitObj = (window as any).MiniKit;
     
     setIsExecuting(true);
     setErrorMsg(null);
@@ -200,34 +194,26 @@ export default function App() {
         reference: `wldguard-tx-${Date.now()}`
       };
 
-      // 🚨 THE UNIVERSAL SDK BRIDGE FIX (Handles v1, v2, v3, and Native Hardware Bridge)
-      if (MiniKitObj) {
-        if (typeof MiniKitObj.sendTransaction === 'function') {
-          MiniKitObj.sendTransaction(payload).catch((e: any) => console.warn("Promise ignored", e));
-        } else if (MiniKitObj.commandsAsync && typeof MiniKitObj.commandsAsync.sendTransaction === 'function') {
-          MiniKitObj.commandsAsync.sendTransaction(payload).catch((e: any) => console.warn("Promise ignored", e));
-        } else if (MiniKitObj.commands && typeof MiniKitObj.commands.sendTransaction === 'function') {
-          MiniKitObj.commands.sendTransaction(payload);
-        } else {
-          throw new Error("sendTransaction command not found on your World App version.");
-        }
-        
-        setDebugLog("Payload fired to Native Bridge. Waiting 8s for Wallet event...");
-
-        // Safety Net Timeout
-        setTimeout(() => {
-          setIsExecuting((currentlyExecuting) => {
-            if (currentlyExecuting) {
-              setErrorMsg("Hardware Timeout: The wallet swallowed the transaction. Ensure WLD contract is allowlisted.");
-              setDebugLog("Timeout reached. Event listener received no reply from hardware.");
-              return false;
-            }
-            return currentlyExecuting;
-          });
-        }, 8000);
-      } else {
-        throw new Error("sendTransaction command not found on your World App version.");
+      if (!MiniKit.isInstalled()) {
+         throw new Error("SDK not installed. Ensure you are inside the World App.");
       }
+
+      // 🚨 THE OFFICIAL NPM PACKAGE BRIDGE (Fire and forget to avoid hanging)
+      MiniKit.commandsAsync.sendTransaction(payload).catch((e: any) => console.warn("Promise ignored", e));
+      
+      setDebugLog("Payload fired via NPM SDK. Waiting 8s for Wallet event...");
+
+      // Safety Net Timeout
+      setTimeout(() => {
+        setIsExecuting((currentlyExecuting) => {
+          if (currentlyExecuting) {
+            setErrorMsg("Hardware Timeout: The wallet swallowed the transaction. Ensure WLD contract is allowlisted.");
+            setDebugLog("Timeout reached. Event listener received no reply from hardware.");
+            return false;
+          }
+          return currentlyExecuting;
+        });
+      }, 8000);
 
     } catch (error: any) {
       setDebugLog(`Execution Exception: ${error.message}`);
