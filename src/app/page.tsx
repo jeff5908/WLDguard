@@ -61,15 +61,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const passiveVal = payload.find((p: any) => p.dataKey === 'passive')?.value;
 
     return (
-      <div className="bg-slate-900/90 border border-slate-700 p-3 rounded-xl shadow-xl backdrop-blur-md z-50">
-        <p className="text-slate-400 text-xs mb-2 font-semibold uppercase tracking-wider">{label}</p>
+      <div className="bg-slate-900/90 border border-slate-700 p-2.5 rounded-xl shadow-xl backdrop-blur-md z-50">
+        <p className="text-slate-400 text-[10px] mb-1.5 font-semibold uppercase tracking-wider">{label}</p>
         <div className="space-y-1 flex flex-col">
-          <p className="text-emerald-400 font-bold text-sm flex items-center gap-2 m-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <p className="text-emerald-400 font-bold text-xs flex items-center gap-2 m-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
             Managed: {managedVal?.toLocaleString()} WLD
           </p>
-          <p className="text-slate-500 font-semibold text-sm flex items-center gap-2 m-0">
-            <span className="w-2 h-2 rounded-full bg-slate-500"></span>
+          <p className="text-slate-500 font-semibold text-xs flex items-center gap-2 m-0">
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
             Passive: {passiveVal?.toLocaleString()} WLD
           </p>
         </div>
@@ -92,7 +92,7 @@ export default function App() {
   const [proposal, setProposal] = useState<any>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [debugLog, setDebugLog] = useState<string>("System Ready. Awaiting user action.");
+  const [debugLog, setDebugLog] = useState<string>("System Ready.");
   const [activeIntent, setActiveIntent] = useState<any>(null);
 
   // 🚨 UI FIX: Inject Tailwind dynamically to guarantee styling regardless of Vercel config
@@ -244,10 +244,11 @@ export default function App() {
         }
       `}} />
 
-      <main className="min-h-screen text-slate-50 selection:bg-emerald-500/30 pb-12 overflow-x-hidden flex flex-col items-center w-full bg-slate-950">
+      <main className="min-h-screen text-slate-50 selection:bg-emerald-500/30 overflow-x-hidden flex flex-col items-center w-full bg-slate-950 pb-8">
         
         {/* 🚀 THE GLOBAL DASHBOARD CONTAINER */}
-        <div className="w-full max-w-md mx-auto flex flex-col gap-5 px-4 pt-6">
+        {/* Adjusted: Tightened global gap from gap-5 to gap-3, reduced pt-6 to pt-4 */}
+        <div className="w-full max-w-md mx-auto flex flex-col gap-3 px-4 pt-4">
           
           {/* HEADER */}
           <header className="flex flex-row justify-between items-center w-full">
@@ -260,57 +261,61 @@ export default function App() {
                   strokeWidth="2.5" 
                   strokeLinecap="round" 
                   strokeLinejoin="round" 
-                  style={{ width: '24px', height: '24px', flexShrink: 0 }}
+                  style={{ width: '22px', height: '22px', flexShrink: 0 }}
                 >
                   <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                   <polyline points="16 6 23 6 23 13"></polyline>
                 </svg>
                 WLDguard
               </h1>
-              <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">
+              <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">
                 Protect. Earn. Compound WLD.
               </span>
             </div>
-            <div className="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-[11px] font-mono text-slate-400">
+            <div className="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-[10px] font-mono text-slate-400">
               0x...a1b2
             </div>
           </header>
 
           {/* 🚨 DIAGNOSTIC CONSOLE */}
-          <div className="bg-black border border-slate-800 p-3 rounded-lg w-full shadow-inner">
-            <p className="text-[10px] text-emerald-400 font-mono truncate m-0 flex flex-row items-center gap-2">
+          {/* Adjusted: Changed p-3 to py-1.5 px-3 to make it a sleek, thin bar */}
+          <div className="bg-black border border-slate-800 py-1.5 px-3 rounded-lg w-full shadow-inner">
+            <p className="text-[9px] text-emerald-400 font-mono truncate m-0 flex flex-row items-center gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse block"></span>
               LOG: {debugLog}
             </p>
           </div>
 
           {/* METRICS GRID */}
-          <div className="grid grid-cols-2 gap-4 w-full">
-            <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-lg flex flex-col justify-center">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1 m-0">Total Protected</p>
-              <p className="text-xl font-bold text-slate-200 m-0">
-                {stats.wld.toLocaleString()} <span className="text-xs text-emerald-400">WLD</span>
+          <div className="grid grid-cols-2 gap-3 w-full">
+            {/* Adjusted: Changed p-4 to py-2.5 px-4 to reduce vertical fat */}
+            <div className="bg-slate-900/80 border border-slate-800 py-2.5 px-4 rounded-2xl shadow-lg flex flex-col justify-center">
+              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold mb-0.5 m-0">Total Protected</p>
+              <p className="text-lg font-bold text-slate-200 m-0">
+                {stats.wld.toLocaleString()} <span className="text-[10px] text-emerald-400">WLD</span>
               </p>
             </div>
-            <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl shadow-lg flex flex-col justify-center">
-              <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold mb-1 m-0">Active Users</p>
-              <p className="text-xl font-bold text-slate-200 m-0">{stats.users.toLocaleString()}</p>
+            <div className="bg-slate-900/80 border border-slate-800 py-2.5 px-4 rounded-2xl shadow-lg flex flex-col justify-center">
+              <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold mb-0.5 m-0">Active Users</p>
+              <p className="text-lg font-bold text-slate-200 m-0">{stats.users.toLocaleString()}</p>
             </div>
           </div>
 
           {/* 📈 PERFORMANCE CHART */}
-          <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-3xl shadow-xl w-full">
-            <div className="flex flex-row justify-between items-end mb-4">
+          {/* Adjusted: Changed p-4 to p-3.5 */}
+          <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-3xl shadow-xl w-full">
+            <div className="flex flex-row justify-between items-end mb-3">
               <div className="flex flex-col">
-                <h3 className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-1 m-0">Backtested Alpha</h3>
-                <p className="text-md font-bold text-slate-200 m-0">WLDguard vs. Passive</p>
+                <h3 className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5 m-0">Backtested Alpha</h3>
+                <p className="text-sm font-bold text-slate-200 m-0">WLDguard vs. Passive</p>
               </div>
               <div className="text-right">
-                <span className="inline-block bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded">+48.5% Outperformance</span>
+                <span className="inline-block bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded">+48.5% Outperformance</span>
               </div>
             </div>
             
-            <div className="w-full relative" style={{ height: '160px' }}>
+            {/* Adjusted: Reduced height from 160px to 140px */}
+            <div className="w-full relative" style={{ height: '140px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={performanceData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
                   <defs>
@@ -323,7 +328,7 @@ export default function App() {
                       <stop offset="95%" stopColor="#64748b" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <XAxis dataKey="month" stroke="#475569" fontSize={10} tickLine={false} axisLine={false} dy={10} />
+                  <XAxis dataKey="month" stroke="#475569" fontSize={9} tickLine={false} axisLine={false} dy={8} />
                   <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#334155', strokeWidth: 1, strokeDasharray: '4 4' }} />
                   
                   <Area type="monotone" dataKey="passive" stroke="#64748b" strokeWidth={2} fillOpacity={1} fill="url(#colorPassive)" />
@@ -331,45 +336,48 @@ export default function App() {
                 </AreaChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-[9px] text-slate-600 mt-4 m-0 text-center uppercase tracking-widest">Historical simulation vs passive holding</p>
+            <p className="text-[8px] text-slate-600 mt-3 m-0 text-center uppercase tracking-widest">Historical simulation vs passive holding</p>
           </div>
 
           {/* 🤖 THE USER INTERACTION AREA */}
-          <div className="w-full mt-2">
+          {/* Adjusted: Grouped tabs and card together tightly */}
+          <div className="w-full flex flex-col gap-2">
             
             {/* TABBED ACTION CENTER */}
-            <div className="bg-slate-900 border border-slate-700 p-1.5 rounded-2xl shadow-lg mb-4 flex flex-row w-full">
+            <div className="bg-slate-900 border border-slate-700 p-1 rounded-2xl shadow-lg flex flex-row w-full">
+              {/* Adjusted: py-3 to py-2.5 */}
               <button 
                 onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); setActiveTab('agent'); }}
-                className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all flex flex-row items-center justify-center gap-2 ${activeTab === 'agent' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`flex-1 py-2.5 text-[11px] font-bold rounded-xl transition-all flex flex-row items-center justify-center gap-2 ${activeTab === 'agent' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Step 1: 🤖 AI Optimizer
               </button>
               <button 
                 onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); setActiveTab('intent'); }}
-                className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all flex flex-row items-center justify-center gap-2 ${activeTab === 'intent' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`flex-1 py-2.5 text-[11px] font-bold rounded-xl transition-all flex flex-row items-center justify-center gap-2 ${activeTab === 'intent' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Step 2: 🛡️ Auto-Protect
               </button>
             </div>
 
             {/* ACTION CARD */}
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-3xl shadow-2xl relative overflow-hidden w-full min-h-[260px] flex flex-col">
+            {/* Adjusted: Changed p-6 to p-5, reduced min-h from 260px to 210px */}
+            <div className="bg-slate-900 border border-slate-700 p-5 rounded-3xl shadow-2xl relative overflow-hidden w-full min-h-[210px] flex flex-col">
               <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
               
               {errorMsg && (
-                <div className="relative z-10 bg-red-900/50 border border-red-500/50 p-4 rounded-xl text-xs text-red-200 mb-5 font-mono break-words">
+                <div className="relative z-10 bg-red-900/50 border border-red-500/50 p-3 rounded-xl text-[11px] text-red-200 mb-4 font-mono break-words">
                   {errorMsg}
                 </div>
               )}
 
               {txHash && (
-                <div className="relative z-10 bg-emerald-900/50 border border-emerald-500/50 p-5 rounded-xl shadow-lg mb-5 animate-in fade-in zoom-in duration-300 flex flex-col">
-                  <div className="flex items-center justify-center mb-3">
-                    <span className="text-3xl">✅</span>
+                <div className="relative z-10 bg-emerald-900/50 border border-emerald-500/50 p-4 rounded-xl shadow-lg mb-4 animate-in fade-in zoom-in duration-300 flex flex-col">
+                  <div className="flex items-center justify-center mb-2">
+                    <span className="text-2xl">✅</span>
                   </div>
-                  <h3 className="text-center font-bold text-emerald-400 mb-2">Execution Complete</h3>
-                  <p className="text-[10px] text-emerald-200/80 font-mono break-words text-center mb-5 pb-5 border-b border-emerald-500/30">
+                  <h3 className="text-center font-bold text-emerald-400 mb-1 text-sm">Execution Complete</h3>
+                  <p className="text-[9px] text-emerald-200/80 font-mono break-words text-center mb-4 pb-4 border-b border-emerald-500/30">
                     {txHash}
                   </p>
                   <button 
@@ -378,7 +386,7 @@ export default function App() {
                       setTxHash(null);
                       setActiveTab('intent');
                     }}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 py-3.5 rounded-xl font-bold text-sm transition-all shadow-md active:scale-95 text-white flex flex-row items-center justify-center gap-2 mt-auto"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-[13px] transition-all shadow-md active:scale-95 text-white flex flex-row items-center justify-center gap-2 mt-auto"
                   >
                     Continue to Step 2 ➡️
                   </button>
@@ -389,20 +397,23 @@ export default function App() {
                 <div className="flex flex-col h-full w-full flex-grow">
                   {!proposal ? (
                     <div className="flex flex-col relative z-10 animate-in fade-in duration-300 h-full flex-grow">
-                      <h2 className="text-lg font-semibold text-slate-100 m-0 mb-3">Immediate Action</h2>
-                      <p className="text-xs text-slate-400 mb-6 leading-relaxed m-0">
+                      <h2 className="text-base font-semibold text-slate-100 m-0 mb-2">Immediate Action</h2>
+                      
+                      {/* Adjusted: Text size reduced to text-[11px] and mb-6 changed to mb-3 */}
+                      <p className="text-[11px] text-slate-400 mb-3 leading-relaxed m-0">
                         Maximize your WLD growth and income with automated AI strategies. WLDguard manages the risk while capturing elite WLD and USDC yields on Morpho.
                       </p>
                       
-                      <div className="mt-auto">
+                      <div className="mt-auto pt-2">
+                        {/* Adjusted: py-4 to py-3.5 */}
                         <button 
                           onClick={handleRunAgent}
                           disabled={loading || isExecuting}
-                          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold text-sm transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex flex-row items-center justify-center gap-2"
+                          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-3.5 rounded-xl font-bold text-[13px] transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex flex-row items-center justify-center gap-2 m-0"
                         >
                           {loading ? (
                             <span className="animate-pulse flex flex-row items-center gap-2">
-                              <div style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                              <div style={{ width: '14px', height: '14px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                               Agent Processing...
                             </span>
                           ) : (
@@ -413,15 +424,15 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 relative z-10 h-full flex-grow">
-                      <div className="bg-black/40 p-5 rounded-2xl border border-blue-500/30 mb-5">
-                        <div className="flex flex-row justify-between items-center mb-4">
-                          <span className="text-xs font-bold text-blue-400 uppercase tracking-wider m-0">Proposed Action</span>
-                          <span className="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md font-mono border border-emerald-500/20 m-0">
+                      <div className="bg-black/40 p-4 rounded-2xl border border-blue-500/30 mb-4">
+                        <div className="flex flex-row justify-between items-center mb-3">
+                          <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider m-0">Proposed Action</span>
+                          <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-md font-mono border border-emerald-500/20 m-0">
                             {proposal.expectedYield}
                           </span>
                         </div>
-                        <h3 className="text-lg font-bold mb-2 text-slate-100 m-0">{proposal.type}</h3>
-                        <p className="text-xs text-slate-300 leading-relaxed m-0">
+                        <h3 className="text-base font-bold mb-1.5 text-slate-100 m-0">{proposal.type}</h3>
+                        <p className="text-[11px] text-slate-300 leading-relaxed m-0">
                           {proposal.description}
                         </p>
                       </div>
@@ -430,11 +441,11 @@ export default function App() {
                         <button 
                           onClick={handleExecute}
                           disabled={isExecuting}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 py-4 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex flex-row items-center justify-center m-0"
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 py-3.5 rounded-xl font-bold text-[13px] transition-all shadow-lg shadow-emerald-600/20 active:scale-95 flex flex-row items-center justify-center m-0"
                         >
                           {isExecuting ? (
                             <span className="animate-pulse flex flex-row items-center gap-2">
-                              <div style={{ width: '16px', height: '16px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                              <div style={{ width: '14px', height: '14px', border: '2px solid white', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
                               ⏳ Waiting for Wallet...
                             </span>
                           ) : (
@@ -445,7 +456,7 @@ export default function App() {
                         <button 
                           onClick={() => setProposal(null)}
                           disabled={isExecuting}
-                          className="w-full bg-transparent hover:bg-slate-800 disabled:opacity-50 text-slate-400 py-3 rounded-xl font-semibold transition-all active:scale-95 m-0"
+                          className="w-full bg-transparent hover:bg-slate-800 disabled:opacity-50 text-slate-400 py-2.5 rounded-xl text-xs font-semibold transition-all active:scale-95 m-0"
                         >
                           Cancel
                         </button>
@@ -457,35 +468,35 @@ export default function App() {
 
               {activeTab === 'intent' && !txHash && (
                 <div className="flex flex-col animate-in fade-in duration-300 relative z-10 h-full flex-grow">
-                  <div className="flex flex-row items-center gap-3 mb-4">
-                    <span className="text-xl">🛡️</span>
-                    <h2 className="text-lg font-semibold text-slate-100 m-0">Future Protection</h2>
+                  <div className="flex flex-row items-center gap-2 mb-3">
+                    <span className="text-lg">🛡️</span>
+                    <h2 className="text-base font-semibold text-slate-100 m-0">Future Protection</h2>
                   </div>
                   
                   {activeIntent ? (
-                    <div className="bg-indigo-950/30 border border-indigo-500/30 p-5 rounded-2xl mt-2 mb-auto">
-                      <div className="flex flex-row justify-between items-center mb-3">
-                        <span className="text-xs text-indigo-300 uppercase tracking-wider font-bold flex flex-row items-center gap-2 m-0">
-                          <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse block"></span>
+                    <div className="bg-indigo-950/30 border border-indigo-500/30 p-4 rounded-2xl mt-1 mb-auto">
+                      <div className="flex flex-row justify-between items-center mb-2">
+                        <span className="text-[10px] text-indigo-300 uppercase tracking-wider font-bold flex flex-row items-center gap-1.5 m-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse block"></span>
                           Network Intent Active
                         </span>
                       </div>
-                      <p className="text-sm text-slate-200 mb-2 m-0">
+                      <p className="text-[13px] text-slate-200 mb-1.5 m-0">
                         Trigger: <span className="font-bold text-white">WLD hits ${activeIntent.targetPrice}</span>
                       </p>
-                      <p className="text-xs text-slate-400 m-0">
+                      <p className="text-[11px] text-slate-400 m-0">
                         Action: Trim {activeIntent.amount} to Morpho USDC Vault
                       </p>
                     </div>
                   ) : (
                      <div className="flex flex-col h-full flex-grow">
-                      <p className="text-xs text-slate-400 mb-6 leading-relaxed m-0">
+                      <p className="text-[11px] text-slate-400 mb-3 leading-relaxed m-0">
                         Projected Upper Bollinger Band: <span className="text-indigo-400 font-bold">$0.48</span>. Pre-sign an off-chain intent to automatically lock in profits if the market spikes while you sleep.
                       </p>
-                      <div className="mt-auto">
+                      <div className="mt-auto pt-2">
                         <button 
                           onClick={handleSignIntent}
-                          className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 py-4 rounded-xl font-bold text-sm text-indigo-300 transition-all shadow-lg active:scale-95 flex flex-row items-center justify-center gap-2 m-0"
+                          className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-600 py-3.5 rounded-xl font-bold text-[13px] text-indigo-300 transition-all shadow-lg active:scale-95 flex flex-row items-center justify-center gap-2 m-0"
                         >
                           Sign $0.48 Limit Intent
                         </button>
