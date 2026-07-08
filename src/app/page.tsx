@@ -19,13 +19,9 @@ export default function App() {
   const handleExecute = async () => {
     setStatus("Requesting native drawer...");
 
-    // Grab your own wallet address from the SDK
-    const myWalletAddress = MiniKit.walletAddress;
-
-    if (!myWalletAddress) {
-      setStatus("Error: Wallet address not found. Make sure you are in the app!");
-      return;
-    }
+    // 🚨 Dev Mode sometimes hides your address until formal auth. 
+    // We fallback to Vitalik's public address for this 1 wei test!
+    const targetAddress = MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 
     try {
       await MiniKit.commandsAsync.sendTransaction({
@@ -33,8 +29,8 @@ export default function App() {
           address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token on World Chain
           abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
           functionName: 'transfer',
-          // Transfer 1 wei (a microscopic fraction of a penny) to YOURSELF
-          args: [myWalletAddress, '1']
+          // Transfer 1 wei to the target address
+          args: [targetAddress, '1']
         }],
         reference: `wldguard-beta-${Date.now()}` // Unique ID so it doesn't get cached
       });
