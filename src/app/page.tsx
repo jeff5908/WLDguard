@@ -200,10 +200,10 @@ export default function App() {
         reference: `wldguard-tx-${Date.now()}`
       };
 
-      // We use the synchronous "Fire and Forget" to avoid hanging Promises
-      if (MiniKitObj && MiniKitObj.commands && typeof MiniKitObj.commands.sendTransaction === 'function') {
-        MiniKitObj.commands.sendTransaction(payload);
-        setDebugLog("Payload fired. Waiting 8s for Wallet event...");
+      // 🚨 THE FIX: Use commandsAsync (since it exists) but DO NOT 'await' it!
+      if (MiniKitObj && MiniKitObj.commandsAsync && typeof MiniKitObj.commandsAsync.sendTransaction === 'function') {
+        MiniKitObj.commandsAsync.sendTransaction(payload).catch((e: any) => console.warn("Promise ignored:", e));
+        setDebugLog("Payload fired via commandsAsync. Waiting 8s for Wallet event...");
 
         // Safety Net Timeout
         setTimeout(() => {
