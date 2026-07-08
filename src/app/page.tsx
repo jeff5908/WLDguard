@@ -5,7 +5,7 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // ============================================================================
 // THE BULLETPROOF ENGINE (Standalone MiniKit Wrapper)
-// Bypasses Vercel module resolution errors while perfectly bridging to the app
+// Bypasses Vercel module resolution errors while bridging to the native hardware
 // ============================================================================
 const MiniKit = {
   install: (app_id: string) => {
@@ -31,6 +31,7 @@ const MiniKit = {
           };
           window.addEventListener('message', listener);
         } else {
+          // Fallback simulation for web preview
           setTimeout(() => resolve({ finalPayload: { status: 'success' } }), 1500);
         }
       });
@@ -60,7 +61,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     const passiveVal = payload.find((p: any) => p.dataKey === 'passive')?.value;
 
     return (
-      <div className="bg-slate-900/90 border border-slate-700 p-3 rounded-xl shadow-xl backdrop-blur-md">
+      <div className="bg-slate-900/90 border border-slate-700 p-3 rounded-xl shadow-xl backdrop-blur-md z-50">
         <p className="text-slate-400 text-xs mb-2 font-semibold uppercase tracking-wider">{label}</p>
         <div className="space-y-1">
           <p className="text-emerald-400 font-bold text-sm flex items-center gap-2">
@@ -96,13 +97,21 @@ export default function App() {
 
   useEffect(() => {
     setIsMounted(true);
-    setDebugLog("Component Mounted. Fetching stats...");
+    setDebugLog("Component Mounted. Fetching live stats...");
     
-    // Simulate fetching stats
-    setTimeout(() => {
-        setStats({ users: 142, wld: 12500 });
-        setDebugLog("Stats loaded.");
-    }, 1000);
+    // RESTORED: Fetching actual live stats from your database!
+    fetch('/api/stats')
+      .then(res => {
+        if (res.ok) return res.json();
+        throw new Error("Stats API failed");
+      })
+      .then(data => {
+        setStats({ users: data.totalUsers || 1, wld: data.totalWld || 100 });
+        setDebugLog("Live DB stats loaded.");
+      })
+      .catch(err => {
+        console.warn("Live stats fetch bypassed, using local defaults.");
+      });
 
     try {
       // 🚨 ADD YOUR APP ID HERE
@@ -121,11 +130,26 @@ export default function App() {
     setTxHash(null);
     setDebugLog("Pinging Quant Backend API...");
     
-    // Simulate AI Agent processing delay
-    setTimeout(() => {
-      const targetAddress = MiniKit.walletAddress;
+    try {
+      const userAddress = MiniKit.walletAddress;
+
+      // RESTORED: Fetching actual dynamic pricing from your backend API
+      const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        },
+        body: JSON.stringify({ userAddress })
+      });
       
-      // The exact, proven 1-wei WLD payload that passes the simulation
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Agent API failed");
+
+      setProposal(data.proposal);
+      setDebugLog("Dynamic proposal received from AI Backend.");
+    } catch (error: any) {
+      // Fallback only if your API is asleep: Uses the exact, proven 1-wei WLD payload that passes the simulation
       setProposal({ 
         type: 'Yield Optimizer', 
         description: 'Demo Strategy: Securely route capital using approved pathways.', 
@@ -134,12 +158,13 @@ export default function App() {
           address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token
           abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
           functionName: 'transfer',
-          args: [targetAddress, '1']
+          args: [MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', '1']
         }]
       });
-      setDebugLog("Generated verified WLD payload.");
+      setDebugLog("API offline. Generated local verified WLD payload.");
+    } finally {
       setLoading(false);
-    }, 1500);
+    }
   };
 
   const handleExecute = async () => {
@@ -157,7 +182,7 @@ export default function App() {
     }
 
     try {
-      // 🚨 THE PROVEN BRIDGE 🚨
+      // 🚨 THE PROVEN HARDWARE BRIDGE 🚨
       const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({
         transaction: proposal.txData,
         reference: `wldguard-tx-${Date.now()}`
@@ -197,13 +222,14 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-12">
+    <main className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-emerald-500/30 pb-12 overflow-x-hidden">
       
       {/* 🚀 THE GLOBAL DASHBOARD */}
       <section className="pt-6 pb-4 px-6 max-w-md mx-auto">
         <header className="text-center mb-5 flex flex-col items-center justify-center">
           <div className="flex items-center justify-center gap-2">
-            <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            {/* Carefully constrained inline SVG instead of external lucide-react imports */}
+            <svg className="w-6 h-6 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
             <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent tracking-tight">
