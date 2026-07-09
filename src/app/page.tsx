@@ -99,8 +99,8 @@ export default function App() {
     setIsMounted(true);
     setDebugLog("Component Mounted. Fetching live stats...");
     
-    // Fetching actual live stats from your database
-    fetch('/api/stats')
+    // 🚨 AGGRESSIVE CACHE BUSTER: Forces the browser to grab the live 95 WLD
+    fetch(`/api/stats?t=${Date.now()}`, { cache: 'no-store' })
       .then(res => {
         if (res.ok) return res.json();
         throw new Error("Stats API failed");
