@@ -1,26 +1,25 @@
-import { PrismaClient } from '@prisma/client';
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+// --- Quant Math Functions ---
 function calculateSMA(prices, period) {
     if (prices.length < period) return null;
     const slice = prices.slice(-period);
-    const sum = slice.reduce((acc, val) => acc + val, 0);
-    return sum / period;
+    return slice.reduce((acc, val) => acc + val, 0) / period;
 }
 
 function calculateStandardDeviation(prices, period, sma) {
     if (prices.length < period) return null;
     const slice = prices.slice(-period);
-    const squaredDifferences = slice.map(price => Math.pow(price - sma, 2));
-    const variance = squaredDifferences.reduce((acc, val) => acc + val, 0) / period;
+    const variance = slice.reduce((acc, val) => acc + Math.pow(val - sma, 2), 0) / period;
     return Math.sqrt(variance);
 }
 
 function calculateBollingerBands(prices, period = 20, multiplier = 2.0) {
     const sma = calculateSMA(prices, period);
-    if (sma === null) return null;
+    if (!sma) return null;
     const stdDev = calculateStandardDeviation(prices, period, sma);
-    if (stdDev === null) return null;
+    if (!stdDev) return null;
     return {
         sma,
         upperBand: sma + (stdDev * multiplier),
@@ -30,25 +29,25 @@ function calculateBollingerBands(prices, period = 20, multiplier = 2.0) {
 
 let historicalPrices = [];
 
+// --- Live Market API ---
 async function fetchLiveMarketData() {
     try {
         const response = await fetch('https://api.coingecko.com/api/v3/coins/worldcoin-wld/ohlc?vs_currency=usd&days=1');
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
+        // Extract the closing prices from the last 20 candles
         const recentCandles = data.slice(-20);
         historicalPrices = recentCandles.map(candle => parseFloat(candle[4]));
 
         return historicalPrices[historicalPrices.length - 1];
     } catch (error) {
-        console.error("⚠️ Error fetching live WLD price from CoinGecko:", error.message);
+        console.error("⚠️ Error fetching live WLD price:", error.message);
         return null;
     }
 }
 
+// --- The Core Bot Loop ---
 async function runMarketAnalysis() {
     console.log(`\n[${new Date().toLocaleTimeString()}] 🤖 WLDguard Daemon Waking Up...`);
     
@@ -67,12 +66,12 @@ async function runMarketAnalysis() {
     console.log(`📈 Upper Band: $${bands.upperBand.toFixed(3)} | 📉 Lower Band: $${bands.lowerBand.toFixed(3)}`);
 
     let action = 'HOLD';
-    let description = '';
-    let expectedYield = '';
+    let description = `Market is Stable at $${livePrice.toFixed(3)}. Let your assets continue earning passive vault yield.`;
+    let expectedYield = '13.57% APY (WLD Vault)';
 
     if (livePrice > bands.upperBand) {
         action = 'TRIM_WLD';
-        description = `Market Overbought at $${livePrice.toFixed(3)}. Trimming 40% WLD into USDC to lock in profits.`;
+        description = `Market Overbought at $${livePrice.toFixed(3)}. Trimming WLD into USDC to lock in profits.`;
         expectedYield = '13.34% APY (USDC Vault)';
         console.log(`🚨 [SIGNAL] WLD is OVERBOUGHT! Preparing Database Broadcast...`);
     } else if (livePrice < bands.lowerBand) {
@@ -81,53 +80,43 @@ async function runMarketAnalysis() {
         expectedYield = '13.57% APY (WLD Vault)';
         console.log(`🚨 [SIGNAL] WLD is OVERSOLD! Preparing Database Broadcast...`);
     } else {
-        action = 'HOLD';
-        description = `Market is Stable at $${livePrice.toFixed(3)}. Let your assets continue earning passive vault yield.`;
-        expectedYield = '13.57% APY (WLD Vault)';
-        console.log(`🛡️ Market is Stable at $${livePrice.toFixed(3)}. Preparing Database Broadcast for Dashboard...`);
-        // 🚨 CRITICAL FIX: The "return;" has been removed from here so it ACTUALLY writes to the DB!
+        console.log(`🛡️ Market is Stable. No trade required.`);
     }
 
     try {
-        let users = await prisma.user.findMany();
+        // Find our active beta tester (You!)
+        const users = await prisma.user.findMany();
         
-        if (users.length === 0) {
-            console.log("⚠️ No users found. Creating 'Beta Tester' profile for Closed Beta...");
-            const testUser = await prisma.user.create({
-                data: {
-                    worldId: "beta_tester_001",
-                    walletAddress: "0xBetaWallet",
-                    wldBalance: 100,
-                    usdcBalance: 0
-                }
-            });
-            users = [testUser]; 
+        if (users.length > 0) {
+            console.log(`📡 Broadcasting signal to ${users.length} active users...`);
+            
+            for (const user of users) {
+                // Save the proposal directly to the database so the phone app can read it
+                await prisma.proposal.create({
+                    data: {
+                        userId: user.id,
+                        type: action,
+                        description: description,
+                        expectedYield: expectedYield,
+                        status: 'PENDING_USER_APPROVAL'
+                    }
+                });
+            }
+            console.log(`✅ Success! Database updated.`);
+        } else {
+            console.log(`⚠️ No users found in database to broadcast to.`);
         }
-
-        console.log(`📡 Broadcasting signal to ${users.length} active users...`);
-        
-        for (const user of users) {
-            await prisma.proposal.create({
-                data: {
-                    userId: user.id,
-                    type: action,
-                    description: description,
-                    expectedYield: expectedYield,
-                    status: 'PENDING_USER_APPROVAL'
-                }
-            });
-        }
-        console.log(`✅ Success! The Frontend UI will now show the '$${livePrice.toFixed(3)}' price.`);
     } catch (error) {
-        console.log(`⚠️ Database connection skipped for local testing:`, error.message);
+        console.log(`⚠️ Database connection error:`, error.message);
     }
 }
 
 console.log("=============================================");
-console.log("🚀 Starting WLDguard 24/7 Quant Engine (CoinGecko Live API)...");
+console.log("🚀 Starting WLDguard 24/7 Quant Engine...");
 console.log("=============================================");
 
+// Run immediately on startup
 runMarketAnalysis();
 
-// 5 minutes (300000 milliseconds)
+// Then run every 5 minutes (300,000 milliseconds)
 setInterval(runMarketAnalysis, 300000);
