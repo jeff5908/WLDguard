@@ -1,50 +1,26 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '../../../lib/prisma'; 
+import { prisma } from '../../../lib/prisma';
 
-// 🚨 CRITICAL FIX: Tell Vercel to NEVER cache this API route!
+// 🚨 CRITICAL: Tells Vercel to NEVER cache this endpoint so live stats are always accurate
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// 1. Handles the button click from the World App (POST)
-export async function POST(req: Request) {
-  return await fetchLatestSignal();
-}
-
-// 2. Handles direct visits from your Chromebook browser for easy testing! (GET)
-export async function GET(req: Request) {
-  return await fetchLatestSignal();
-}
-
-// Core database logic
-async function fetchLatestSignal() {
+export async function GET() {
   try {
-    const latestProposal = await prisma.proposal.findFirst({
-      orderBy: { createdAt: 'desc' },
+    // Count actual users in the database
+    const totalUsers = await prisma.user.count();
+    
+    // Sum actual WLD balances in the database
+    const aggregations = await prisma.user.aggregate({
+      _sum: { wldBalance: true },
     });
 
-    if (!latestProposal) {
-      return NextResponse.json({
-        status: 'neutral',
-        message: 'Market stable, no action required.',
-        proposal: null
-      });
-    }
+    const totalWld = aggregations._sum.wldBalance || 0;
 
-    return NextResponse.json({
-      status: 'success',
-      proposal: {
-        type: latestProposal.type,
-        description: latestProposal.description,
-        expectedYield: latestProposal.expectedYield,
-        txData: [{ to: "0xMock", data: "0x00" }] 
-      }
-    });
-
-  } catch (error: any) {
-    console.error('API Error:', error);
-    return NextResponse.json({ 
-      error: 'Failed to fetch signal from database',
-      details: error.message 
-    }, { status: 500 });
+    return NextResponse.json({ totalUsers, totalWld });
+  } catch (error) {
+    console.error("Stats API Error:", error);
+    // If DB fails, fallback to 0 instead of fake numbers
+    return NextResponse.json({ totalUsers: 0, totalWld: 0 });
   }
 }
