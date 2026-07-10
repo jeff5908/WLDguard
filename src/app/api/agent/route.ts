@@ -6,7 +6,9 @@ export const revalidate = 0;
 
 // Official World Chain Contracts
 const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
+const USDC_ADDRESS = "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1";
 const MORPHO_WLD_VAULT = "0xc3d68deB631FA5896E3a3e6B4e3b1c676E4B490B";
+const MORPHO_USDC_VAULT = "0x5403063cbce1df2f61e8787f0a8d56b4bd4b1239";
 
 // Smart Contract ABIs
 const ERC20_ABI = [{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}];
@@ -32,16 +34,51 @@ export async function POST(req: Request) {
     }
 
     let txData = null;
+    let finalDescription = latestProposal.description;
+    let finalType = latestProposal.type;
 
-    // 3. If the AI decided to act, dynamically calculate the payload based on real balances
-    if (latestProposal.type === 'TRIM_WLD' || latestProposal.type === 'BUY_WLD' || latestProposal.type === 'DEPOSIT_WLD') {
+    // 3A. BUY WLD LOGIC (Requires USDC)
+    if (latestProposal.type === 'BUY_WLD') {
+        const usdcBalance = user?.usdcBalance || 0;
+        
+        if (usdcBalance <= 0) {
+            // OVERRIDE: User has no USDC to buy with!
+            finalType = 'MISSED OPPORTUNITY (NO USDC)';
+            finalDescription = `AI Signal: Market is Oversold. However, you have 0 USDC available to deploy. Please deposit USDC to automate dip-buying.`;
+            txData = null; 
+        } else {
+            // (Future implementation: Insert actual Uniswap USDC->WLD swap logic here)
+            // For now, we will simulate depositing their USDC into the Morpho USDC vault
+            const dynamicAmount = usdcBalance * 0.10; 
+            const amountWei = BigInt(Math.floor(dynamicAmount * 1e6)).toString(); // USDC uses 6 decimals
+
+            txData = [
+              {
+                address: USDC_ADDRESS,
+                abi: ERC20_ABI,
+                functionName: 'approve',
+                args: [MORPHO_USDC_VAULT, amountWei]
+              },
+              {
+                address: MORPHO_USDC_VAULT,
+                abi: ERC4626_ABI,
+                functionName: 'deposit',
+                args: [amountWei, userAddress]
+              }
+            ];
+        }
+    }
+
+    // 3B. TRIM WLD LOGIC (Requires WLD)
+    else if (latestProposal.type === 'TRIM_WLD' || latestProposal.type === 'DEPOSIT_WLD') {
         const wldBalance = user?.wldBalance || 0;
         
-        // Calculate 10% of their actual balance dynamically
-        if (wldBalance > 0) {
+        if (wldBalance <= 0) {
+            finalType = 'INSUFFICIENT WLD';
+            finalDescription = `AI Signal triggered, but you have 0 WLD available in your portfolio.`;
+            txData = null;
+        } else {
             const dynamicAmount = wldBalance * 0.10; 
-            
-            // Convert to blockchain math (18 zeros) safely without external dependencies
             const amountWei = BigInt(Math.floor(dynamicAmount * 1e18)).toString();
 
             txData = [
@@ -65,10 +102,10 @@ export async function POST(req: Request) {
     return NextResponse.json({
       status: 'success',
       proposal: {
-        type: latestProposal.type,
-        description: latestProposal.description,
+        type: finalType,
+        description: finalDescription,
         expectedYield: latestProposal.expectedYield,
-        txData: txData // Will be null if the AI says 'HOLD'
+        txData: txData 
       }
     });
 
