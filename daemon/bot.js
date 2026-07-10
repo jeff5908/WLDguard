@@ -29,6 +29,38 @@ function calculateBollingerBands(prices, period = 20, multiplier = 2.0) {
 
 let historicalPrices = [];
 
+// --- Morpho Yield API ---
+async function fetchMorphoYield(vaultAddress, chainId) {
+    try {
+        const query = `
+            query {
+                vaultByAddress(address: "${vaultAddress}", chainId: ${chainId}) {
+                    state {
+                        netApy
+                    }
+                }
+            }
+        `;
+        const response = await fetch('https://blue-api.morpho.org/graphql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+        });
+        
+        const data = await response.json();
+        const rawApy = data?.data?.vaultByAddress?.state?.netApy;
+        
+        // Morpho returns decimals (e.g., 0.1288). We convert it to a percentage (12.88).
+        if (rawApy !== undefined && rawApy !== null) {
+            return (rawApy * 100).toFixed(2); 
+        }
+        return null;
+    } catch (error) {
+        console.log(`⚠️ Error fetching Morpho API for ${vaultAddress}:`, error.message);
+        return null;
+    }
+}
+
 // --- Live Market API ---
 async function fetchLiveMarketData() {
     try {
@@ -47,6 +79,9 @@ async function fetchLiveMarketData() {
     }
 }
 
+const MORPHO_WLD_VAULT = "0xc3d68deB631FA5896E3a3e6B4e3b1c676E4B490B";
+const MORPHO_USDC_VAULT = "0x5403063cbce1df2f61e8787f0a8d56b4bd4b1239";
+
 // --- The Core Bot Loop ---
 async function runMarketAnalysis() {
     console.log(`\n[${new Date().toLocaleTimeString()}] 🤖 WLDguard Daemon Waking Up...`);
@@ -60,6 +95,12 @@ async function runMarketAnalysis() {
     
     console.log(`📊 Live WLD Price: $${livePrice.toFixed(3)}`);
 
+    // Fetch live yields (with our hardcoded fallbacks just in case the API drops)
+    const wldApy = await fetchMorphoYield(MORPHO_WLD_VAULT, 480) || "12.88";
+    const usdcApy = await fetchMorphoYield(MORPHO_USDC_VAULT, 480) || "12.24";
+    
+    console.log(`🌱 Live APY - WLD: ${wldApy}% | USDC: ${usdcApy}%`);
+
     const bands = calculateBollingerBands(historicalPrices, 20, 2.0);
     if (!bands) return;
 
@@ -67,17 +108,18 @@ async function runMarketAnalysis() {
 
     let action = 'HOLD';
     let description = `Market is Stable at $${livePrice.toFixed(3)}. Let your assets continue earning passive vault yield.`;
-    let expectedYield = '13.57% APY (WLD Vault)';
+    // Dynamically inject the live APY into the database proposal
+    let expectedYield = `${wldApy}% APY (WLD Vault)`;
 
     if (livePrice > bands.upperBand) {
         action = 'TRIM_WLD';
         description = `Market Overbought at $${livePrice.toFixed(3)}. Trimming WLD into USDC to lock in profits.`;
-        expectedYield = '13.34% APY (USDC Vault)';
+        expectedYield = `${usdcApy}% APY (USDC Vault)`;
         console.log(`🚨 [SIGNAL] WLD is OVERBOUGHT! Preparing Database Broadcast...`);
     } else if (livePrice < bands.lowerBand) {
         action = 'BUY_WLD';
         description = `Market Oversold at $${livePrice.toFixed(3)}. Buying WLD with parked USDC.`;
-        expectedYield = '13.57% APY (WLD Vault)';
+        expectedYield = `${wldApy}% APY (WLD Vault)`;
         console.log(`🚨 [SIGNAL] WLD is OVERSOLD! Preparing Database Broadcast...`);
     } else {
         console.log(`🛡️ Market is Stable. No trade required.`);
