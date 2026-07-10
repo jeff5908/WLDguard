@@ -32,13 +32,13 @@ let historicalPrices = [];
 // --- Live Market API ---
 async function fetchLiveMarketData() {
     try {
-        const response = await fetch('https://api.coingecko.com/api/v3/coins/worldcoin-wld/ohlc?vs_currency=usd&days=1');
+        // Swapped to MEXC Public API: Identical structure to Binance, but U.S. IP friendly for read-only data
+        const response = await fetch('https://api.mexc.com/api/v3/klines?symbol=WLDUSDT&interval=60m&limit=20');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
-        // Extract the closing prices from the last 20 candles
-        const recentCandles = data.slice(-20);
-        historicalPrices = recentCandles.map(candle => parseFloat(candle[4]));
+        // MEXC returns an array of arrays. Index 4 is the closing price.
+        historicalPrices = data.map(candle => parseFloat(candle[4]));
 
         return historicalPrices[historicalPrices.length - 1];
     } catch (error) {
@@ -83,31 +83,42 @@ async function runMarketAnalysis() {
         console.log(`🛡️ Market is Stable. No trade required.`);
     }
 
-    try {
-        // Find our active beta tester (You!)
-        const users = await prisma.user.findMany();
-        
-        if (users.length > 0) {
-            console.log(`📡 Broadcasting signal to ${users.length} active users...`);
+    // --- Resilient Database Connection (Retry Logic for Neon Cold Starts) ---
+    let retries = 3;
+    while (retries > 0) {
+        try {
+            // Find our active beta tester
+            const users = await prisma.user.findMany();
             
-            for (const user of users) {
-                // Save the proposal directly to the database so the phone app can read it
-                await prisma.proposal.create({
-                    data: {
-                        userId: user.id,
-                        type: action,
-                        description: description,
-                        expectedYield: expectedYield,
-                        status: 'PENDING_USER_APPROVAL'
-                    }
-                });
+            if (users.length > 0) {
+                console.log(`📡 Broadcasting signal to ${users.length} active users...`);
+                
+                for (const user of users) {
+                    await prisma.proposal.create({
+                        data: {
+                            userId: user.id,
+                            type: action,
+                            description: description,
+                            expectedYield: expectedYield,
+                            status: 'PENDING_USER_APPROVAL'
+                        }
+                    });
+                }
+                console.log(`✅ Success! Database updated.`);
+            } else {
+                console.log(`⚠️ No users found in database to broadcast to.`);
             }
-            console.log(`✅ Success! Database updated.`);
-        } else {
-            console.log(`⚠️ No users found in database to broadcast to.`);
+            break; // Success! Exit the retry loop
+        } catch (error) {
+            retries -= 1;
+            console.log(`⚠️ Database asleep. Retrying in 3 seconds... (${retries} attempts left)`);
+            if (retries === 0) {
+                console.log(`❌ Database connection failed after retries:`, error.message);
+            } else {
+                // Wait 3 seconds for Neon to wake up before trying again
+                await new Promise(res => setTimeout(res, 3000));
+            }
         }
-    } catch (error) {
-        console.log(`⚠️ Database connection error:`, error.message);
     }
 }
 
