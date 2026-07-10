@@ -176,7 +176,8 @@ export default function App() {
     setDebugLog("Preparing payload via MiniKit Wrapper...");
 
     if (!proposal || !proposal.txData) {
-        setDebugLog("Error: No transaction data to send.");
+        setTxHash("Action Acknowledged! Position held safely.");
+        setDebugLog("Hold State: No on-chain transaction required.");
         setIsExecuting(false);
         return;
     }
