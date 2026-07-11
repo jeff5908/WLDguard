@@ -19,10 +19,34 @@ export async function POST(req: Request) {
     const body = await req.json();
     const userAddress = body.userAddress;
 
-    // 1. Fetch the user's real balance from the database
+    // 1. Fetch the user's real balance AND their most recent trade from the database
     const user = await prisma.user.findUnique({
-      where: { walletAddress: userAddress }
+      where: { walletAddress: userAddress },
+      include: {
+        trades: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      }
     });
+
+    // 1b. 🚨 COOLDOWN LOGIC: Prevent over-trading during a prolonged breakout
+    if (user && user.trades.length > 0) {
+      const lastTradeTime = new Date(user.trades[0].createdAt).getTime();
+      const twelveHoursAgo = Date.now() - (12 * 60 * 60 * 1000); // 12 hour cooldown
+
+      if (lastTradeTime > twelveHoursAgo) {
+        return NextResponse.json({
+          status: 'success',
+          proposal: {
+            type: 'REBALANCED_TODAY',
+            description: 'You successfully captured volatility today! WLDguard is holding your position in cooldown mode to prevent over-trading and protect your gains.',
+            expectedYield: 'Passive Yield Active',
+            txData: null // Null prevents the UI from generating a transaction button
+          }
+        });
+      }
+    }
 
     // 2. Fetch the MOST RECENT decision from your 24/7 AI Daemon
     const latestProposal = await prisma.proposal.findFirst({
