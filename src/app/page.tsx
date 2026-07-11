@@ -8,35 +8,35 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 // Bypasses Vercel module resolution errors while bridging to the native hardware
 // ============================================================================
 const MiniKit = {
-  install: (app_id: string) => {
-    if (typeof window !== 'undefined' && (window as any).MiniKit) {
-      (window as any).MiniKit.install(app_id);
-    }
-  },
-  get walletAddress() {
-    return (typeof window !== 'undefined' && (window as any).MiniKit?.walletAddress) 
-      ? (window as any).MiniKit.walletAddress 
-      : '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
-  },
-  commandsAsync: {
-    sendTransaction: async (payload: any) => {
-      return new Promise((resolve) => {
-        if (typeof window !== 'undefined' && (window as any).MiniKit?.commands) {
-          (window as any).MiniKit.commands.sendTransaction(payload);
-          const listener = (event: MessageEvent) => {
-            if (event.data?.source === 'minikit') {
-              window.removeEventListener('message', listener);
-              resolve({ finalPayload: event.data.payload });
-            }
-          };
-          window.addEventListener('message', listener);
-        } else {
-          // Fallback simulation for web preview
-          setTimeout(() => resolve({ finalPayload: { status: 'success' } }), 1500);
-        }
-      });
-    }
-  }
+install: (app_id: string) => {
+if (typeof window !== 'undefined' && (window as any).MiniKit) {
+(window as any).MiniKit.install(app_id);
+}
+},
+get walletAddress() {
+return (typeof window !== 'undefined' && (window as any).MiniKit?.walletAddress)
+? (window as any).MiniKit.walletAddress
+: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+},
+commandsAsync: {
+sendTransaction: async (payload: any) => {
+return new Promise((resolve) => {
+if (typeof window !== 'undefined' && (window as any).MiniKit?.commands) {
+(window as any).MiniKit.commands.sendTransaction(payload);
+const listener = (event: MessageEvent) => {
+if (event.data?.source === 'minikit') {
+window.removeEventListener('message', listener);
+resolve({ finalPayload: event.data.payload });
+}
+};
+window.addEventListener('message', listener);
+} else {
+// Fallback simulation for web preview
+setTimeout(() => resolve({ finalPayload: { status: 'success' } }), 1500);
+}
+});
+}
+}
 };
 
 // ============================================================================
@@ -45,216 +45,321 @@ const MiniKit = {
 
 // 90-Day Seed Data showing the WLDguard Alpha (Outperformance)
 const performanceData = [
-  { month: 'Jan', passive: 10000, managed: 10000 },
-  { month: 'Feb', passive: 8500, managed: 9800 },
-  { month: 'Mar', passive: 7200, managed: 9950 },
-  { month: 'Apr', passive: 8800, managed: 11500 },
-  { month: 'May', passive: 10500, managed: 13200 },
-  { month: 'Jun', passive: 9800, managed: 13600 },
-  { month: 'Jul', passive: 11000, managed: 14850 },
+{ month: 'Jan', passive: 10000, managed: 10000 },
+{ month: 'Feb', passive: 8500, managed: 9800 },
+{ month: 'Mar', passive: 7200, managed: 9950 },
+{ month: 'Apr', passive: 8800, managed: 11500 },
+{ month: 'May', passive: 10500, managed: 13200 },
+{ month: 'Jun', passive: 9800, managed: 13600 },
+{ month: 'Jul', passive: 11000, managed: 14850 },
 ];
 
 // Custom Tooltip for the dark UI
 const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const managedVal = payload.find((p: any) => p.dataKey === 'managed')?.value;
-    const passiveVal = payload.find((p: any) => p.dataKey === 'passive')?.value;
+if (active && payload && payload.length) {
+const managedVal = payload.find((p: any) => p.dataKey === 'managed')?.value;
+const passiveVal = payload.find((p: any) => p.dataKey === 'passive')?.value;
 
-    return (
-      <div className="bg-slate-900/90 border border-slate-700 p-2.5 rounded-xl shadow-xl backdrop-blur-md z-50">
-        <p className="text-slate-400 text-[10px] mb-1.5 font-semibold uppercase tracking-wider">{label}</p>
-        <div className="space-y-1 flex flex-col">
-          <p className="text-emerald-400 font-bold text-xs flex items-center gap-2 m-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-            Managed: {managedVal?.toLocaleString()} WLD
-          </p>
-          <p className="text-slate-500 font-semibold text-xs flex items-center gap-2 m-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-            Passive: {passiveVal?.toLocaleString()} WLD
-          </p>
-        </div>
-      </div>
-    );
-  }
-  return null;
+return (
+  <div className="bg-slate-900/90 border border-slate-700 p-2.5 rounded-xl shadow-xl backdrop-blur-md z-50">
+    <p className="text-slate-400 text-[10px] mb-1.5 font-semibold uppercase tracking-wider">{label}</p>
+    <div className="space-y-1 flex flex-col">
+      <p className="text-emerald-400 font-bold text-xs flex items-center gap-2 m-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+        Managed: {managedVal?.toLocaleString()} WLD
+      </p>
+      <p className="text-slate-500 font-semibold text-xs flex items-center gap-2 m-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+        Passive: {passiveVal?.toLocaleString()} WLD
+      </p>
+    </div>
+  </div>
+);
+
+
+}
+return null;
 };
 
 export default function App() {
-  const [isMounted, setIsMounted] = useState(false);
+const [isMounted, setIsMounted] = useState(false);
+
+// 🚨 NEW STOREFRONT STATE
+const [isVerified, setIsVerified] = useState(false);
+const [isVerifying, setIsVerifying] = useState(false);
+
+// LIVE DATABASE METRICS
+const [stats, setStats] = useState({ users: 1, wld: 100 });
+
+// UI & TRANSACTION STATE
+const [activeTab, setActiveTab] = useState<'agent' | 'intent'>('agent');
+const [loading, setLoading] = useState(false);
+const [isExecuting, setIsExecuting] = useState(false);
+const [proposal, setProposal] = useState(null);
+const [txHash, setTxHash] = useState<string | null>(null);
+const [errorMsg, setErrorMsg] = useState<string | null>(null);
+const [debugLog, setDebugLog] = useState("System Ready.");
+const [activeIntent, setActiveIntent] = useState(null);
+
+useEffect(() => {
+setIsMounted(true);
+setDebugLog("Component Mounted. Fetching live stats...");
+
+// 🚨 AGGRESSIVE CACHE BUSTER: Forces the browser to grab the live 95 WLD
+fetch(`/api/stats?t=${Date.now()}`, { cache: 'no-store' })
+  .then(res => {
+    if (res.ok) return res.json();
+    throw new Error("Stats API failed");
+  })
+  .then(data => {
+    setStats({ users: data.totalUsers || 1, wld: data.totalWld || 100 });
+    setDebugLog("Live DB stats loaded.");
+  })
+  .catch(err => {
+    console.warn("Live stats fetch bypassed, using local defaults.");
+  });
+
+try {
+  // 🚨 ADD YOUR APP ID HERE
+  MiniKit.install('app_dedd1afaa8a8e8f839438c78814b996f');
+  setDebugLog("MiniKit SDK Initialized.");
+} catch (e) {
+  console.warn("MiniKit already installed or incompatible.", e);
+}
+
+
+}, []);
+
+// 🚨 NEW VERIFICATION LOGIC
+const handleVerify = () => {
+if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+setIsVerifying(true);
+
+// Simulate MiniKit World ID verification delay
+setTimeout(() => {
+  setIsVerifying(false);
+  setIsVerified(true);
+  setDebugLog("World ID Verified. Welcome to WLDguard.");
+}, 1500);
+
+
+};
+
+const handleRunAgent = async () => {
+if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+setLoading(true);
+setProposal(null);
+setErrorMsg(null);
+setTxHash(null);
+setDebugLog("Pinging Quant Backend API...");
+
+try {
+  const userAddress = MiniKit.walletAddress;
+
+  // Fetching actual dynamic pricing from your backend API
+  const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    },
+    body: JSON.stringify({ userAddress })
+  });
   
-  // LIVE DATABASE METRICS
-  const [stats, setStats] = useState({ users: 1, wld: 100 });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Agent API failed");
+
+  setProposal(data.proposal);
+  setDebugLog("Dynamic proposal received from AI Backend.");
+} catch (error: any) {
+  // Fallback: Uses the exact, proven 1-wei WLD payload that passes the simulation
+  setProposal({ 
+    type: 'Yield Optimizer', 
+    description: 'Market Overbought at $0.48. Securely trimming position to lock in profits and route capital to USDC yield.', 
+    expectedYield: '13.34% APY',
+    txData: [{
+      address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token
+      abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
+      functionName: 'transfer',
+      args: [MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', '1']
+    }]
+  });
+  setDebugLog("API offline. Generated local verified WLD payload.");
+} finally {
+  setLoading(false);
+}
+
+
+};
+
+const handleExecute = async () => {
+if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+
+setIsExecuting(true);
+setErrorMsg(null);
+setTxHash(null);
+setDebugLog("Preparing payload via MiniKit Wrapper...");
+
+if (!proposal || !proposal.txData) {
+    setTxHash("Action Acknowledged! Position held safely.");
+    setDebugLog("Hold State: No on-chain transaction required.");
+    setIsExecuting(false);
+    return;
+}
+
+try {
+  // 🚨 THE PROVEN HARDWARE BRIDGE 🚨
+  const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({
+    transaction: proposal.txData,
+    reference: `wldguard-tx-${Date.now()}`
+  });
   
-  // UI & TRANSACTION STATE
-  const [activeTab, setActiveTab] = useState<'agent' | 'intent'>('agent');
-  const [loading, setLoading] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [proposal, setProposal] = useState<any>(null);
-  const [txHash, setTxHash] = useState<string | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [debugLog, setDebugLog] = useState<string>("System Ready.");
-  const [activeIntent, setActiveIntent] = useState<any>(null);
-
-  useEffect(() => {
-    setIsMounted(true);
-    setDebugLog("Component Mounted. Fetching live stats...");
-    
-    // 🚨 AGGRESSIVE CACHE BUSTER: Forces the browser to grab the live 95 WLD
-    fetch(`/api/stats?t=${Date.now()}`, { cache: 'no-store' })
-      .then(res => {
-        if (res.ok) return res.json();
-        throw new Error("Stats API failed");
-      })
-      .then(data => {
-        setStats({ users: data.totalUsers || 1, wld: data.totalWld || 100 });
-        setDebugLog("Live DB stats loaded.");
-      })
-      .catch(err => {
-        console.warn("Live stats fetch bypassed, using local defaults.");
-      });
-
-    try {
-      // 🚨 ADD YOUR APP ID HERE
-      MiniKit.install('app_dedd1afaa8a8e8f839438c78814b996f');
-      setDebugLog("MiniKit SDK Initialized.");
-    } catch (e) {
-      console.warn("MiniKit already installed or incompatible.", e);
-    }
-  }, []);
-
-  const handleRunAgent = async () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    setLoading(true);
-    setProposal(null);
-    setErrorMsg(null);
-    setTxHash(null);
-    setDebugLog("Pinging Quant Backend API...");
-    
-    try {
-      const userAddress = MiniKit.walletAddress;
-
-      // Fetching actual dynamic pricing from your backend API
-      const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate'
-        },
-        body: JSON.stringify({ userAddress })
-      });
-      
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Agent API failed");
-
-      setProposal(data.proposal);
-      setDebugLog("Dynamic proposal received from AI Backend.");
-    } catch (error: any) {
-      // Fallback: Uses the exact, proven 1-wei WLD payload that passes the simulation
-      setProposal({ 
-        type: 'Yield Optimizer', 
-        description: 'Market Overbought at $0.48. Securely trimming position to lock in profits and route capital to USDC yield.', 
-        expectedYield: '13.34% APY',
-        txData: [{
-          address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token
-          abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
-          functionName: 'transfer',
-          args: [MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', '1']
-        }]
-      });
-      setDebugLog("API offline. Generated local verified WLD payload.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleExecute = async () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    
-    setIsExecuting(true);
-    setErrorMsg(null);
-    setTxHash(null);
-    setDebugLog("Preparing payload via MiniKit Wrapper...");
-
-    if (!proposal || !proposal.txData) {
-        setTxHash("Action Acknowledged! Position held safely.");
-        setDebugLog("Hold State: No on-chain transaction required.");
-        setIsExecuting(false);
-        return;
-    }
-
-    try {
-      // 🚨 THE PROVEN HARDWARE BRIDGE 🚨
-      const { finalPayload } = await MiniKit.commandsAsync.sendTransaction({
-        transaction: proposal.txData,
-        reference: `wldguard-tx-${Date.now()}`
-      });
-      
-      if (finalPayload.status === 'error') {
-        setErrorMsg(`Simulation Failed: ${JSON.stringify(finalPayload)}`);
-        setDebugLog("Transaction blocked by Paymaster.");
-      } else {
-        setTxHash("Success! Hardware accepted and executed the payload.");
-        setDebugLog("Payload successfully executed on-chain!");
-      }
-      
-    } catch (error: any) {
-      setDebugLog(`Execution Exception: ${error.message}`);
-      setErrorMsg("Execution error: " + (error.message || "Unknown error"));
-    } finally {
-        setIsExecuting(false);
-    }
-  };
-
-  const handleSignIntent = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    setActiveIntent({
-      // Updated to match current WLD pricing dynamically
-      targetPrice: "0.48",
-      amount: "40%"
-    });
-  };
-
-  if (!isMounted) {
-    return (
-      <main className="min-h-screen flex items-center justify-center bg-slate-950">
-        <div style={{ width: '32px', height: '32px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
-      </main>
-    );
+  if (finalPayload.status === 'error') {
+    setErrorMsg(`Simulation Failed: ${JSON.stringify(finalPayload)}`);
+    setDebugLog("Transaction blocked by Paymaster.");
+  } else {
+    setTxHash("Success! Hardware accepted and executed the payload.");
+    setDebugLog("Payload successfully executed on-chain!");
   }
+  
+} catch (error: any) {
+  setDebugLog(`Execution Exception: ${error.message}`);
+  setErrorMsg("Execution error: " + (error.message || "Unknown error"));
+} finally {
+    setIsExecuting(false);
+}
 
-  return (
-    <main className="min-h-screen text-slate-50 selection:bg-emerald-500/30 overflow-x-hidden flex flex-col items-center w-full bg-slate-950 pb-8">
+
+};
+
+const handleSignIntent = () => {
+if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+setActiveIntent({
+// Updated to match current WLD pricing dynamically
+targetPrice: "0.48",
+amount: "40%"
+});
+};
+
+if (!isMounted) {
+return (
+
+<div style={{ width: '32px', height: '32px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}>
+
+);
+}
+
+return (
+
+
+  {/* 🚀 THE MAIN APP CONTAINER */}
+  <div className="w-full max-w-md mx-auto flex flex-col gap-3 px-4 pt-4 min-h-[90vh]">
+    
+    {/* GLOBAL HEADER */}
+    <header className="flex flex-row justify-between items-center w-full mb-2">
+      <div className="flex flex-col">
+        <h1 className="text-2xl font-extrabold flex flex-row items-center gap-2 tracking-tight m-0 bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent">
+          <svg 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="#3b82f6" 
+            strokeWidth="2.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+            style={{ width: '22px', height: '22px', flexShrink: 0 }}
+          >
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+            <polyline points="16 6 23 6 23 13"></polyline>
+          </svg>
+          WLDguard
+        </h1>
+        <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">
+          Protect. Earn. Compound WLD.
+        </span>
+      </div>
       
-      {/* 🚀 THE GLOBAL DASHBOARD CONTAINER */}
-      <div className="w-full max-w-md mx-auto flex flex-col gap-3 px-4 pt-4">
-        
-        {/* HEADER */}
-        <header className="flex flex-row justify-between items-center w-full">
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-extrabold flex flex-row items-center gap-2 tracking-tight m-0 bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent">
-              <svg 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="#3b82f6" 
-                strokeWidth="2.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                style={{ width: '22px', height: '22px', flexShrink: 0 }}
-              >
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
-                <polyline points="16 6 23 6 23 13"></polyline>
-              </svg>
-              WLDguard
-            </h1>
-            <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-0.5">
-              Protect. Earn. Compound WLD.
-            </span>
-          </div>
-          <div className="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-[10px] font-mono text-slate-400">
-            0x...a1b2
-          </div>
-        </header>
+      {/* Only show the wallet address pill if the user is verified */}
+      {isVerified && (
+        <div className="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-[10px] font-mono text-slate-400 animate-in fade-in duration-500">
+          0x...a1b2
+        </div>
+      )}
+    </header>
 
+    {/* ================================================================= */}
+    {/* FACE 1: THE PUBLIC STOREFRONT (UNVERIFIED)                        */}
+    {/* ================================================================= */}
+    {!isVerified && (
+      <div className="flex-1 flex flex-col animate-in fade-in zoom-in-95 duration-500 w-full mt-6">
+        
+        {/* Tagline / Hook */}
+        <div className="text-center mb-10">
+          <h2 className="text-4xl font-black tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
+            Protect. Earn.<br/>Compound WLD.
+          </h2>
+          <p className="text-slate-400 text-sm leading-relaxed px-4">
+            Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
+          </p>
+        </div>
+
+        {/* Live Social Proof Widget */}
+        <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 mb-8 shadow-2xl relative overflow-hidden w-full">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-emerald-500 opacity-50"></div>
+          
+          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
+            🌍 Global Network Analytics
+          </h3>
+          
+          <div className="space-y-6">
+            <div>
+              <p className="text-sm text-slate-400 mb-1">Total WLD Protected</p>
+              <p className="text-3xl font-mono font-bold text-slate-100 flex items-center gap-2 m-0">
+                {stats.wld.toLocaleString()} <span className="text-lg text-emerald-400">WLD</span>
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50">
+                <p className="text-xs text-slate-400 mb-1">Active Humans</p>
+                <p className="text-lg font-bold text-slate-200 m-0">{stats.users.toLocaleString()}</p>
+              </div>
+              <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50">
+                <p className="text-xs text-slate-400 mb-1">Target Yield</p>
+                <p className="text-lg font-bold text-emerald-400 m-0">12.88% APY</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Verification Call to Action */}
+        <div className="mt-auto pb-4 w-full">
+          <button 
+            onClick={handleVerify}
+            disabled={isVerifying}
+            className="w-full bg-slate-100 text-slate-900 hover:bg-white disabled:bg-slate-700 disabled:text-slate-400 font-bold py-4 px-6 rounded-2xl transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] flex items-center justify-center gap-3 text-lg m-0"
+          >
+            {isVerifying ? (
+              <span className="animate-pulse flex items-center gap-2">
+                <div style={{ width: '20px', height: '20px', border: '3px solid #0f172a', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                Connecting...
+              </span>
+            ) : (
+              <>Verify with World ID ⚡</>
+            )}
+          </button>
+          <p className="text-center text-xs text-slate-500 mt-4 font-medium m-0">
+            Zero Gas Fees. 100% Non-Custodial.
+          </p>
+        </div>
+      </div>
+    )}
+
+    {/* ================================================================= */}
+    {/* FACE 2: THE PRIVATE PORTFOLIO (VERIFIED)                          */}
+    {/* ================================================================= */}
+    {isVerified && (
+      <div className="flex-1 flex flex-col gap-3 animate-in slide-in-from-bottom-8 duration-500 w-full mt-2">
+        
         {/* 🚨 DIAGNOSTIC CONSOLE */}
         <div className="bg-black border border-slate-800 py-1.5 px-3 rounded-lg w-full shadow-inner">
           <p className="text-[9px] text-emerald-400 font-mono truncate m-0 flex flex-row items-center gap-2">
@@ -333,7 +438,7 @@ export default function App() {
           </div>
 
           {/* ACTION CARD */}
-          <div className="bg-slate-900 border border-slate-700 p-5 rounded-3xl shadow-2xl relative overflow-hidden w-full min-h-[210px] flex flex-col">
+          <div className="bg-slate-900 border border-slate-700 p-5 rounded-3xl shadow-2xl relative overflow-hidden w-full min-h-[210px] flex flex-col mb-4">
             <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
             
             {errorMsg && (
@@ -476,8 +581,12 @@ export default function App() {
             )}
           </div>
         </div>
-        
       </div>
-    </main>
-  );
+    )}
+    
+  </div>
+</main>
+
+
+);
 }
