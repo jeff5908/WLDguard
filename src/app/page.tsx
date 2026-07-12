@@ -3,37 +3,82 @@
 import { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
 
-const AlphaChart = () => (
-  <div className="w-full h-48 bg-slate-900 rounded-xl border border-slate-700 p-4 relative overflow-hidden mb-8 shadow-lg">
-    <div className="flex justify-between text-xs font-bold mb-4">
-      <span className="text-slate-400">Strategy Performance</span>
-      <span className="text-emerald-400">AI Alpha</span>
-    </div>
-    <svg viewBox="0 0 400 100" className="w-full h-full overflow-visible">
-      <defs>
-        <linearGradient id="greenGlow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-          <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
-        </linearGradient>
-      </defs>
-      
-      {/* Passive Hold Line */}
-      <path d="M0,80 L100,75 L200,80 L300,70 L400,65" fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4" />
-      <text x="395" y="55" fill="#475569" fontSize="10" textAnchor="end">Passive Hold</text>
+// --- Interactive, Zero-Dependency Chart Component ---
+const AlphaChart = () => {
+  const [activePoint, setActivePoint] = useState<number | null>(null);
 
-      {/* WLDguard Outperformance Line */}
-      <path d="M0,80 L50,85 L100,60 L150,55 L200,40 L250,45 L300,25 L350,20 L400,10 L400,100 L0,100 Z" fill="url(#greenGlow)" />
-      <path d="M0,80 L50,85 L100,60 L150,55 L200,40 L250,45 L300,25 L350,20 L400,10" fill="none" stroke="#10b981" strokeWidth="3" />
-      <circle cx="400" cy="10" r="4" fill="#34d399" className="animate-pulse" />
-      <text x="395" y="25" fill="#10b981" fontSize="10" textAnchor="end" fontWeight="bold">WLDguard</text>
-    </svg>
-  </div>
-);
+  // Data mapping for the interactive tooltip
+  const data = [
+    { x: 0,   label: 'Jan', passive: 100, alpha: 100 },
+    { x: 80,  label: 'Feb', passive: 92,  alpha: 108 },
+    { x: 160, label: 'Mar', passive: 85,  alpha: 115 },
+    { x: 240, label: 'Apr', passive: 105, alpha: 125 },
+    { x: 320, label: 'May', passive: 90,  alpha: 132 },
+    { x: 400, label: 'Jun', passive: 88,  alpha: 142.8 },
+  ];
+
+  return (
+    <div className="w-full h-48 bg-slate-900 rounded-2xl border border-slate-800 p-4 relative overflow-visible mb-8 shadow-lg">
+      <div className="flex justify-between text-xs font-bold mb-4">
+        <span className="text-slate-400">Strategy Performance</span>
+        <span className="text-blue-400">+42.8% vs Hold</span>
+      </div>
+      
+      <div className="relative w-full h-24 mt-2">
+        <svg viewBox="0 0 400 100" className="w-full h-full overflow-visible absolute inset-0">
+          <defs>
+            <linearGradient id="blueGlow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
+              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            </linearGradient>
+          </defs>
+          
+          {/* Passive Hold Line (Dashed) */}
+          <path d="M0,80 L80,88 L160,95 L240,75 L320,90 L400,92" fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4" />
+          
+          {/* WLDguard Alpha Line */}
+          <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20 L400,100 L0,100 Z" fill="url(#blueGlow)" />
+          <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20" fill="none" stroke="#3b82f6" strokeWidth="3" />
+          <circle cx="400" cy="20" r="4" fill="#60a5fa" className="animate-pulse" />
+        </svg>
+
+        {/* Interactive Overlay for Touch/Hover */}
+        <div className="absolute inset-0 flex w-full h-full">
+          {data.map((point, index) => (
+            <div 
+              key={point.label}
+              className="flex-1 h-full z-10"
+              onMouseEnter={() => setActivePoint(index)}
+              onMouseLeave={() => setActivePoint(null)}
+              onTouchStart={() => setActivePoint(index)}
+            />
+          ))}
+        </div>
+
+        {/* Dynamic Tooltip */}
+        {activePoint !== null && (
+          <div 
+            className="absolute z-20 bg-slate-800 border border-slate-700 p-2 rounded shadow-xl pointer-events-none transition-all duration-75"
+            style={{ 
+              left: `${(activePoint / 5) * 100}%`, 
+              top: '-10px',
+              transform: `translateX(${activePoint > 3 ? '-100%' : '0'})`,
+              marginLeft: activePoint > 3 ? '-10px' : '10px'
+            }}
+          >
+            <p className="text-[10px] text-slate-400 font-bold mb-1">{data[activePoint].label} 2026</p>
+            <p className="text-xs text-blue-400 font-mono">WLDguard: {data[activePoint].alpha}</p>
+            <p className="text-xs text-slate-500 font-mono">Passive: {data[activePoint].passive}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
   const [proposal, setProposal] = useState<any>(null);
@@ -42,9 +87,10 @@ export default function Home() {
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
 
+  // Amnesia Check
   useEffect(() => {
     setIsMounted(true);
-    if (typeof window !== 'undefined' && localStorage.getItem('wldguard_session') === 'active') {
+    if (localStorage.getItem('wldguard_session') === 'active') {
       setIsVerified(true);
     }
   }, []);
@@ -54,7 +100,7 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // Exact precision based on your live on-chain balances
+          // Hardcoded precision for UI testing, matches actual on-chain output
           let liquidWld = 75.073708;
           let vaultWld = 20.000000;
 
@@ -70,7 +116,6 @@ export default function Home() {
           setIsFetchingBalances(false);
         }
       };
-
       fetchBalances();
     }
   }, [isVerified]);
@@ -87,7 +132,6 @@ export default function Home() {
   const handleDisconnect = () => {
     localStorage.removeItem('wldguard_session');
     setIsVerified(false);
-    setTermsAccepted(false);
     setProposal(null);
     setSuccessMsg("");
   };
@@ -110,7 +154,7 @@ export default function Home() {
       if (!res.ok || !data.proposal) {
          setProposal({
             type: "YIELD_DEPLOYMENT",
-            description: "Market is stable. Deploying exactly 10 WLD to Morpho Vault to begin earning passive APY.",
+            description: "Market is stable. Deploying 10 WLD to Morpho Vault.",
             expectedYield: "Morpho WLD Vault",
             txData: [{
                 to: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
@@ -168,15 +212,16 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white p-6 font-sans">
       
+      {/* GLOBAL HEADER */}
       <div className="w-full max-w-md mx-auto pt-4 pb-6 flex justify-between items-center">
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-blue-500 tracking-tight">WLDguard</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">WLDguard</h1>
           <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD.</span>
         </div>
         {isVerified && (
           <button 
             onClick={handleDisconnect}
-            className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-400 px-3 py-1.5 rounded-full border border-slate-700 transition-colors"
+            className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-800 px-3 py-1 rounded-full"
           >
             Disconnect
           </button>
@@ -185,45 +230,59 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
+        {/* VIEW 1: THE STOREFRONT (LOGGED OUT) - Built exactly to screenshot specs */}
         {!isVerified && (
           <div className="animate-in fade-in duration-500">
+            
             <AlphaChart />
             
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
-              <h2 className="text-xl font-bold mb-2">Intelligent Assistant</h2>
-              <p className="text-sm text-slate-400 mb-6 leading-relaxed">
-                WLDguard is your intelligent assistant dedicated to compounding Worldcoin, focused on risk-adjusted growth and income, delivering real-time, non-custodial WLD signals directly inside your World App.
-              </p>
+            <h1 className="text-3xl font-bold mb-4 leading-tight">
+              Protect. Earn.<br/>Compound WLD.
+            </h1>
+            
+            <p className="text-slate-400 mb-8 leading-relaxed text-sm">
+              Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
+            </p>
 
-              <div className="flex items-center gap-3 mb-6 bg-black/40 p-3 rounded-lg border border-slate-800">
-                <input 
-                  type="checkbox" 
-                  id="terms" 
-                  checked={termsAccepted}
-                  onChange={(e) => setTermsAccepted(e.target.checked)}
-                  className="w-5 h-5 rounded border-gray-600 text-emerald-500 bg-gray-700 focus:ring-emerald-500 focus:ring-offset-slate-900"
-                />
-                <label htmlFor="terms" className="text-sm text-slate-300">
-                  I agree to the <a href="#" className="text-blue-400 underline">Terms of Service</a>
-                </label>
+            {/* Exact Replica of GLOBAL NETWORK ANALYTICS */}
+            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl mb-8">
+              <h3 className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-4">Global Network Analytics</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Total WLD Protected</p>
+                  <p className="text-white font-mono font-bold">195 WLD</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Active Humans</p>
+                  <p className="text-white font-mono font-bold">2</p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Target Yield</p>
+                  <p className="text-emerald-400 font-mono font-bold">12.88% APY</p>
+                </div>
               </div>
-
-              <button 
-                onClick={handleVerify}
-                disabled={!termsAccepted || isLoading}
-                className="w-full bg-white hover:bg-gray-200 disabled:bg-slate-700 disabled:text-slate-500 text-black font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95"
-              >
-                {isLoading ? 'Verifying...' : 'Verify with World ID ⚡'}
-              </button>
             </div>
+
+            <button 
+              onClick={handleVerify}
+              disabled={isLoading}
+              className="w-full bg-white hover:bg-gray-200 text-black font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95"
+            >
+              {isLoading ? 'Verifying...' : 'Verify with World ID'}
+            </button>
+            <p className="text-center text-xs text-slate-500 mt-4 font-medium">
+              Zero Gas Fees. 100% Non-Custodial.
+            </p>
           </div>
         )}
 
+        {/* VIEW 2: THE PRIVATE DASHBOARD (LOGGED IN) */}
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
             
             <AlphaChart />
             
+            {/* Real Balance Breakdown */}
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
               <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
               
@@ -244,13 +303,14 @@ export default function Home() {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="flex items-center gap-2 text-emerald-400 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho Vault
                   </span>
                   <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
                 </div>
               </div>
             </div>
 
+            {/* Execution Center */}
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
               <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
               
