@@ -38,9 +38,47 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// Reusable Chart Component so we don't duplicate code
+const PerformanceChart = () => (
+  <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-3xl shadow-xl w-full">
+    <div className="flex flex-row justify-between items-end mb-3">
+      <div className="flex flex-col">
+        <h3 className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5 m-0">Backtested Alpha</h3>
+        <p className="text-sm font-bold text-slate-200 m-0">WLDguard vs. Passive</p>
+      </div>
+      <div className="text-right">
+        <span className="inline-block bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded">+48.5% Outperformance</span>
+      </div>
+    </div>
+    
+    <div className="w-full relative" style={{ height: '140px' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={performanceData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="colorManaged" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#34d399" stopOpacity={0.4}/>
+              <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
+            </linearGradient>
+            <linearGradient id="colorPassive" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="#64748b" stopOpacity={0.2}/>
+              <stop offset="95%" stopColor="#64748b" stopOpacity={0}/>
+            </linearGradient>
+          </defs>
+          <XAxis dataKey="month" stroke="#475569" fontSize={9} tickLine={false} axisLine={false} dy={8} />
+          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#334155', strokeWidth: 1, strokeDasharray: '4 4' }} />
+          <Area type="monotone" dataKey="passive" stroke="#64748b" strokeWidth={2} fillOpacity={1} fill="url(#colorPassive)" />
+          <Area type="monotone" dataKey="managed" stroke="#34d399" strokeWidth={3} fillOpacity={1} fill="url(#colorManaged)" />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+    <p className="text-[8px] text-slate-600 mt-3 m-0 text-center uppercase tracking-widest">Historical simulation vs passive holding</p>
+  </div>
+);
+
 export default function App() {
   const [isMounted, setIsMounted] = useState(false);
-  const [isVerified, setIsVerified] = useState(false);
+  // Default to false so the landing page ALWAYs shows first until verified.
+  const [isVerified, setIsVerified] = useState(false); 
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
 
@@ -64,7 +102,6 @@ export default function App() {
       .catch(() => console.warn("Live stats fetch bypassed, using local defaults."));
 
     try {
-      // Initialize official MiniKit SDK for hardware bridging
       MiniKit.install('app_dedd1afaa8a8e8f839438c78814b996f');
     } catch (e) {
       console.warn("MiniKit initialization issue.", e);
@@ -88,6 +125,7 @@ export default function App() {
         body: JSON.stringify({ walletAddress, termsAccepted })
       });
       
+      // Crucial: This triggers the switch to the Private Dashboard
       setIsVerified(true);
       setDebugLog("World ID verified. Welcome to WLDguard.");
     } catch (e) {
@@ -124,7 +162,7 @@ export default function App() {
       setProposal(data.proposal);
       setDebugLog("Dynamic proposal received from AI Backend.");
     } catch (error: any) {
-      // 10 WLD = 10000000000000000000 in Wei
+      // Fallback payload requesting exactly 10 WLD (10 * 10^18 Wei)
       setProposal({ 
         type: 'YIELD_DEPLOYMENT', 
         description: 'Market is stable. Deploying 10 WLD to Morpho Vault.', 
@@ -205,6 +243,7 @@ export default function App() {
     <main className="min-h-screen bg-black text-white font-sans flex flex-col items-center">
       <div className="w-full max-w-md mx-auto flex flex-col gap-3 px-4 pt-4">
         
+        {/* HEADER - Always Visible */}
         <header className="flex flex-row justify-between items-center w-full">
           <div className="flex flex-col">
             <h1 className="text-2xl font-extrabold flex flex-row items-center gap-2 tracking-tight m-0 bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent">
@@ -231,7 +270,7 @@ export default function App() {
           </div>
         </header>
 
-        {}
+        {/* LOG OUT VIEW: The Storefront */}
         {!isVerified ? (
           <div className="flex flex-col gap-3 animate-in fade-in duration-500 w-full">
             
@@ -255,41 +294,9 @@ export default function App() {
               </div>
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-3xl shadow-xl w-full">
-              <div className="flex flex-row justify-between items-end mb-3">
-                <div className="flex flex-col">
-                  <h3 className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider mb-0.5 m-0">Backtested Alpha</h3>
-                  <p className="text-sm font-bold text-slate-200 m-0">WLDguard vs. Passive</p>
-                </div>
-                <div className="text-right">
-                  <span className="inline-block bg-emerald-500/20 text-emerald-400 text-[9px] font-bold px-2 py-0.5 rounded">+48.5% Outperformance</span>
-                </div>
-              </div>
-              
-              <div className="w-full relative" style={{ height: '140px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={performanceData} margin={{ top: 5, right: 0, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorManaged" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorPassive" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#64748b" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#64748b" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <XAxis dataKey="month" stroke="#475569" fontSize={9} tickLine={false} axisLine={false} dy={8} />
-                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#334155', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                    <Area type="monotone" dataKey="passive" stroke="#64748b" strokeWidth={2} fillOpacity={1} fill="url(#colorPassive)" />
-                    <Area type="monotone" dataKey="managed" stroke="#34d399" strokeWidth={3} fillOpacity={1} fill="url(#colorManaged)" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <p className="text-[8px] text-slate-600 mt-3 m-0 text-center uppercase tracking-widest">Historical simulation vs passive holding</p>
-            </div>
+            {/* Render the reusable chart on the storefront */}
+            <PerformanceChart />
 
-            {}
             <div className="mt-2 bg-slate-900 border border-slate-700 p-5 rounded-3xl shadow-2xl flex flex-col gap-4">
               <div className="flex items-center gap-3 bg-black/40 p-3 rounded-xl border border-slate-800">
                 <input 
@@ -324,6 +331,7 @@ export default function App() {
           </div>
         ) : (
           
+          /* LOG IN VIEW: The Private Dashboard */
           <div className="flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-300 w-full">
             
             <div className="bg-black border border-slate-800 py-1.5 px-3 rounded-lg w-full shadow-inner">
@@ -341,7 +349,10 @@ export default function App() {
                </p>
             </div>
 
-            <div className="w-full flex flex-col gap-2">
+             {/* Render the reusable chart on the private dashboard too! */}
+            <PerformanceChart />
+
+            <div className="w-full flex flex-col gap-2 mt-2">
               
               <div className="bg-slate-900 border border-slate-700 p-1 rounded-2xl shadow-lg flex flex-row w-full">
                 <button 
@@ -358,7 +369,7 @@ export default function App() {
                 </button>
               </div>
 
-              {}
+              {/* ACTION AREA */}
               <div className="bg-slate-900 border border-slate-700 p-5 rounded-3xl shadow-2xl relative overflow-hidden w-full min-h-[210px] flex flex-col">
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 
@@ -390,7 +401,7 @@ export default function App() {
                   </div>
                 )}
                 
-                {}
+                {/* Tab: AI Optimizer */}
                 {activeTab === 'agent' && !txHash && (
                   <div className="flex flex-col h-full w-full flex-grow">
                     {!proposal ? (
@@ -462,7 +473,7 @@ export default function App() {
                   </div>
                 )}
 
-                {}
+                {/* Tab: Intent Signature */}
                 {activeTab === 'intent' && !txHash && (
                   <div className="flex flex-col animate-in fade-in duration-300 relative z-10 h-full flex-grow">
                     <div className="flex flex-row items-center gap-2 mb-3">
