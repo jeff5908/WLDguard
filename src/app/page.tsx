@@ -18,28 +18,35 @@ const AlphaChart = () => {
   ];
 
   return (
-    <div className="w-full h-48 bg-slate-900 rounded-2xl border border-slate-800 p-4 relative overflow-visible mb-8 shadow-lg">
-      <div className="flex justify-between text-xs font-bold mb-4">
-        <span className="text-slate-400">Strategy Performance</span>
-        <span className="text-blue-400">+42.8% vs Hold</span>
+    <div className="w-full h-56 bg-slate-900 rounded-3xl border border-slate-800 p-5 relative overflow-visible shadow-2xl mb-8">
+      <div className="flex justify-between items-center text-xs font-bold mb-6">
+        <span className="text-slate-400 tracking-wider uppercase text-[10px]">Strategy Performance</span>
+        <span className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">+42.8% vs Hold</span>
       </div>
       
-      <div className="relative w-full h-24 mt-2">
+      <div className="relative w-full h-28 mt-2">
         <svg viewBox="0 0 400 100" className="w-full h-full overflow-visible absolute inset-0">
           <defs>
-            <linearGradient id="blueGlow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+            <linearGradient id="greenGlow" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.5" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
             </linearGradient>
           </defs>
+          
+          {/* Subtle Background Grid */}
+          <path d="M0,25 L400,25 M0,50 L400,50 M0,75 L400,75" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
           
           {/* Passive Hold Line (Dashed) */}
           <path d="M0,80 L80,88 L160,95 L240,75 L320,90 L400,92" fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4" />
           
-          {/* WLDguard Alpha Line */}
-          <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20 L400,100 L0,100 Z" fill="url(#blueGlow)" />
-          <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20" fill="none" stroke="#3b82f6" strokeWidth="3" />
-          <circle cx="400" cy="20" r="4" fill="#60a5fa" className="animate-pulse" />
+          {/* WLDguard Alpha Line (Emerald) */}
+          <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20 L400,100 L0,100 Z" fill="url(#greenGlow)" />
+          <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20" fill="none" stroke="#10b981" strokeWidth="3" />
+          <circle cx="400" cy="20" r="4" fill="#34d399" className="animate-pulse" />
+          
+          {/* Chart Labels */}
+          <text x="400" y="100" className="text-[8px] fill-slate-500" textAnchor="end">Passive</text>
+          <text x="400" y="12" className="text-[8px] fill-emerald-500 font-bold tracking-wide" textAnchor="end">WLDguard</text>
         </svg>
 
         {/* Interactive Overlay for Touch/Hover */}
@@ -47,7 +54,7 @@ const AlphaChart = () => {
           {data.map((point, index) => (
             <div 
               key={point.label}
-              className="flex-1 h-full z-10"
+              className="flex-1 h-full z-10 cursor-pointer"
               onMouseEnter={() => setActivePoint(index)}
               onMouseLeave={() => setActivePoint(null)}
               onTouchStart={() => setActivePoint(index)}
@@ -58,17 +65,23 @@ const AlphaChart = () => {
         {/* Dynamic Tooltip */}
         {activePoint !== null && (
           <div 
-            className="absolute z-20 bg-slate-800 border border-slate-700 p-2 rounded shadow-xl pointer-events-none transition-all duration-75"
+            className="absolute z-20 bg-slate-800 border border-slate-700 p-3 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[110px]"
             style={{ 
               left: `${(activePoint / 5) * 100}%`, 
-              top: '-10px',
+              top: '-15px',
               transform: `translateX(${activePoint > 3 ? '-100%' : '0'})`,
-              marginLeft: activePoint > 3 ? '-10px' : '10px'
+              marginLeft: activePoint > 3 ? '-15px' : '15px'
             }}
           >
-            <p className="text-[10px] text-slate-400 font-bold mb-1">{data[activePoint].label} 2026</p>
-            <p className="text-xs text-blue-400 font-mono">WLDguard: {data[activePoint].alpha}</p>
-            <p className="text-xs text-slate-500 font-mono">Passive: {data[activePoint].passive}</p>
+            <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-xs text-emerald-400 font-bold">WLDguard</span>
+              <span className="text-xs text-emerald-400 font-mono">{data[activePoint].alpha}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] text-slate-500">Passive</span>
+              <span className="text-[10px] text-slate-500 font-mono">{data[activePoint].passive}</span>
+            </div>
           </div>
         )}
       </div>
@@ -100,7 +113,7 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // Hardcoded precision for UI testing, matches actual on-chain output
+          // Hardcoded precision matching your actual on-chain output
           let liquidWld = 75.073708;
           let vaultWld = 20.000000;
 
@@ -230,35 +243,42 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
-        {/* VIEW 1: THE STOREFRONT (LOGGED OUT) - Built exactly to screenshot specs */}
+        {/* VIEW 1: THE STOREFRONT (LOGGED OUT) */}
         {!isVerified && (
-          <div className="animate-in fade-in duration-500">
+          <div className="animate-in fade-in duration-500 flex flex-col items-center">
             
-            <AlphaChart />
+            <div className="w-full">
+              <AlphaChart />
+            </div>
             
-            <h1 className="text-3xl font-bold mb-4 leading-tight">
-              Protect. Earn.<br/>Compound WLD.
-            </h1>
-            
-            <p className="text-slate-400 mb-8 leading-relaxed text-sm">
-              Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
-            </p>
+            {/* The Centered, Bold Hero Section */}
+            <div className="text-center mb-10">
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-4 leading-tight tracking-tighter text-white">
+                Protect. Earn.<br/>Compound WLD.
+              </h1>
+              
+              <p className="text-slate-400 leading-relaxed text-sm max-w-[280px] mx-auto">
+                Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
+              </p>
+            </div>
 
-            {/* Exact Replica of GLOBAL NETWORK ANALYTICS */}
-            <div className="bg-slate-900 border border-slate-800 p-5 rounded-2xl mb-8">
-              <h3 className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mb-4">Global Network Analytics</h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Total WLD Protected</p>
-                  <p className="text-white font-mono font-bold">195 WLD</p>
+            {/* Perfectly Aligned Global Network Analytics */}
+            <div className="w-full bg-slate-900 border border-slate-800 p-5 rounded-3xl mb-8 shadow-xl">
+              <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-4 text-center">Global Network Analytics</h3>
+              <div className="flex justify-between items-center px-1">
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
+                  <p className="text-white font-mono font-bold text-sm">195 WLD</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Active Humans</p>
-                  <p className="text-white font-mono font-bold">2</p>
+                <div className="w-px h-6 bg-slate-800"></div>
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
+                  <p className="text-white font-mono font-bold text-sm">2</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-1">Target Yield</p>
-                  <p className="text-emerald-400 font-mono font-bold">12.88% APY</p>
+                <div className="w-px h-6 bg-slate-800"></div>
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">WLD Target Yield</p>
+                  <p className="text-emerald-400 font-mono font-bold text-sm">12.88% APY</p>
                 </div>
               </div>
             </div>
@@ -266,11 +286,11 @@ export default function Home() {
             <button 
               onClick={handleVerify}
               disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95"
+              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-4 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
             >
               {isLoading ? 'Verifying...' : 'Verify with World ID'}
             </button>
-            <p className="text-center text-xs text-slate-500 mt-4 font-medium">
+            <p className="text-center text-xs text-slate-500 mt-5 font-medium tracking-wide">
               Zero Gas Fees. 100% Non-Custodial.
             </p>
           </div>
@@ -289,7 +309,7 @@ export default function Home() {
               {isFetchingBalances ? (
                 <div className="h-10 bg-slate-800 rounded animate-pulse w-48 mb-6"></div>
               ) : (
-                <div className="text-4xl font-mono font-bold text-white mb-6">
+                <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
                   {balances.total.toFixed(6)} WLD
                 </div>
               )}
@@ -303,7 +323,7 @@ export default function Home() {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="flex items-center gap-2 text-emerald-400 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho Vault
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
                   </span>
                   <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
                 </div>
@@ -339,9 +359,9 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="relative z-10 animate-in slide-in-from-bottom-4">
-                  <div className="bg-black/40 p-4 rounded-2xl border border-blue-500/30 mb-6">
+                  <div className="bg-black/40 p-4 rounded-2xl border border-emerald-500/30 mb-6">
                     <div className="flex justify-between items-center mb-2">
-                      <span className="text-xs font-bold text-blue-400 uppercase">Action Proposed</span>
+                      <span className="text-xs font-bold text-emerald-400 uppercase">Action Proposed</span>
                       <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-mono border border-emerald-500/20">
                         {proposal.expectedYield}
                       </span>
@@ -353,7 +373,7 @@ export default function Home() {
                   
                   <button 
                     onClick={handleExecute}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
                   >
                     Sign & Execute
                   </button>
