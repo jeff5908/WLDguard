@@ -65,7 +65,7 @@ const AlphaChart = () => {
         {/* Dynamic Tooltip */}
         {activePoint !== null && (
           <div 
-            className="absolute z-20 bg-slate-800 border border-slate-700 p-2 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[100px]"
+            className="absolute z-20 bg-slate-800 border border-slate-700 p-2.5 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[130px] whitespace-nowrap"
             style={{ 
               left: `${(activePoint / 5) * 100}%`, 
               top: '-10px',
@@ -73,14 +73,14 @@ const AlphaChart = () => {
               marginLeft: activePoint > 3 ? '-10px' : '10px'
             }}
           >
-            <p className="text-[9px] text-slate-400 font-bold mb-1 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
-            <div className="flex justify-between items-center mb-1">
+            <p className="text-[9px] text-slate-400 font-bold mb-1.5 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
+            <div className="flex justify-between items-center mb-1.5 gap-3">
               <span className="text-[10px] text-emerald-400 font-bold">WLDguard</span>
-              <span className="text-[10px] text-emerald-400 font-mono">{data[activePoint].alpha} WLD</span>
+              <span className="text-[10px] text-emerald-400 font-mono tracking-tight">{data[activePoint].alpha} WLD</span>
             </div>
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-3">
               <span className="text-[9px] text-slate-500">Passive</span>
-              <span className="text-[9px] text-slate-500 font-mono">{data[activePoint].passive} WLD</span>
+              <span className="text-[9px] text-slate-500 font-mono tracking-tight">{data[activePoint].passive} WLD</span>
             </div>
           </div>
         )}
