@@ -5,7 +5,6 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 // ============================================================================
 // THE BULLETPROOF ENGINE (Standalone MiniKit Wrapper)
-// Bypasses Vercel module resolution errors while bridging to the native hardware
 // ============================================================================
 const MiniKit = {
   install: (app_id: string) => {
@@ -31,7 +30,6 @@ const MiniKit = {
           };
           window.addEventListener('message', listener);
         } else {
-          // Fallback simulation for web preview
           setTimeout(() => resolve({ finalPayload: { status: 'success' } }), 1500);
         }
       });
@@ -42,8 +40,6 @@ const MiniKit = {
 // ============================================================================
 // UI DATA & COMPONENTS
 // ============================================================================
-
-// 90-Day Seed Data showing the WLDguard Alpha (Outperformance)
 const performanceData = [
   { month: 'Jan', passive: 10000, managed: 10000 },
   { month: 'Feb', passive: 8500, managed: 9800 },
@@ -54,7 +50,6 @@ const performanceData = [
   { month: 'Jul', passive: 11000, managed: 14850 },
 ];
 
-// Custom Tooltip for the dark UI
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const managedVal = payload.find((p: any) => p.dataKey === 'managed')?.value;
@@ -82,9 +77,12 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function App() {
   const [isMounted, setIsMounted] = useState(false);
 
-  // 🚨 NEW STOREFRONT STATE
+  // STOREFRONT STATE
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
+  
+  // 🚨 NEW: Terms of Service State
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   // LIVE DATABASE METRICS
   const [stats, setStats] = useState({ users: 1, wld: 100 });
@@ -103,7 +101,6 @@ export default function App() {
     setIsMounted(true);
     setDebugLog("Component Mounted. Fetching live stats...");
 
-    // 🚨 AGGRESSIVE CACHE BUSTER: Forces the browser to grab the live 95 WLD
     fetch(`/api/stats?t=${Date.now()}`, { cache: 'no-store' })
       .then(res => {
         if (res.ok) return res.json();
@@ -118,7 +115,6 @@ export default function App() {
       });
 
     try {
-      // 🚨 ADD YOUR APP ID HERE
       MiniKit.install('app_dedd1afaa8a8e8f839438c78814b996f');
       setDebugLog("MiniKit SDK Initialized.");
     } catch (e) {
@@ -126,16 +122,16 @@ export default function App() {
     }
   }, []);
 
-  // 🚨 NEW VERIFICATION LOGIC
   const handleVerify = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsVerifying(true);
 
-    // Simulate MiniKit World ID verification delay
     setTimeout(() => {
       setIsVerifying(false);
       setIsVerified(true);
-      setDebugLog("World ID Verified. Welcome to WLDguard.");
+      setDebugLog("World ID Verified & Terms Accepted. Welcome to WLDguard.");
+      // In production, this is where we send the POST request to our database
+      // to create the User and set termsAcceptedAt: new Date()
     }, 1500);
   };
 
@@ -149,8 +145,6 @@ export default function App() {
 
     try {
       const userAddress = MiniKit.walletAddress;
-
-      // Fetching actual dynamic pricing from your backend API
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
         headers: { 
@@ -166,13 +160,12 @@ export default function App() {
       setProposal(data.proposal);
       setDebugLog("Dynamic proposal received from AI Backend.");
     } catch (error: any) {
-      // Fallback: Uses the exact, proven 1-wei WLD payload that passes the simulation
       setProposal({ 
         type: 'Yield Optimizer', 
         description: 'Market Overbought at $0.48. Securely trimming position to lock in profits and route capital to USDC yield.', 
         expectedYield: '13.34% APY',
         txData: [{
-          address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token
+          address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003',
           abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
           functionName: 'transfer',
           args: [MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', '1']
@@ -186,7 +179,6 @@ export default function App() {
 
   const handleExecute = async () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-
     setIsExecuting(true);
     setErrorMsg(null);
     setTxHash(null);
@@ -200,7 +192,6 @@ export default function App() {
     }
 
     try {
-      // 🚨 THE PROVEN HARDWARE BRIDGE 🚨
       const { finalPayload } = await (MiniKit.commandsAsync as any).sendTransaction({
         transaction: proposal.txData,
         reference: `wldguard-tx-${Date.now()}`
@@ -213,7 +204,6 @@ export default function App() {
         setTxHash("Success! Hardware accepted and executed the payload.");
         setDebugLog("Payload successfully executed on-chain!");
       }
-      
     } catch (error: any) {
       setDebugLog(`Execution Exception: ${error.message}`);
       setErrorMsg("Execution error: " + (error.message || "Unknown error"));
@@ -224,11 +214,7 @@ export default function App() {
 
   const handleSignIntent = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    setActiveIntent({
-      // Updated to match current WLD pricing dynamically
-      targetPrice: "0.48",
-      amount: "40%"
-    });
+    setActiveIntent({ targetPrice: "0.48", amount: "40%" });
   };
 
   if (!isMounted) {
@@ -241,22 +227,13 @@ export default function App() {
 
   return (
     <main className="min-h-screen text-slate-50 selection:bg-emerald-500/30 overflow-x-hidden flex flex-col items-center w-full bg-slate-950 pb-8">
-      {/* 🚀 THE MAIN APP CONTAINER */}
       <div className="w-full max-w-md mx-auto flex flex-col gap-3 px-4 pt-4 min-h-[90vh]">
         
         {/* GLOBAL HEADER */}
         <header className="flex flex-row justify-between items-center w-full mb-2">
           <div className="flex flex-col">
             <h1 className="text-2xl font-extrabold flex flex-row items-center gap-2 tracking-tight m-0 bg-gradient-to-r from-blue-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent">
-              <svg 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="#3b82f6" 
-                strokeWidth="2.5" 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                style={{ width: '22px', height: '22px', flexShrink: 0 }}
-              >
+              <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ width: '22px', height: '22px', flexShrink: 0 }}>
                 <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
                 <polyline points="16 6 23 6 23 13"></polyline>
               </svg>
@@ -266,8 +243,6 @@ export default function App() {
               Protect. Earn. Compound WLD.
             </span>
           </div>
-          
-          {/* Only show the wallet address pill if the user is verified */}
           {isVerified && (
             <div className="bg-slate-900 px-3 py-1.5 rounded-full border border-slate-800 text-[10px] font-mono text-slate-400 animate-in fade-in duration-500">
               0x...a1b2
@@ -281,7 +256,6 @@ export default function App() {
         {!isVerified && (
           <div className="flex-1 flex flex-col animate-in fade-in zoom-in-95 duration-500 w-full mt-6">
             
-            {/* Tagline / Hook */}
             <div className="text-center mb-10">
               <h2 className="text-4xl font-black tracking-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400">
                 Protect. Earn.<br/>Compound WLD.
@@ -291,14 +265,11 @@ export default function App() {
               </p>
             </div>
 
-            {/* Live Social Proof Widget */}
             <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-6 mb-8 shadow-2xl relative overflow-hidden w-full">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-emerald-500 opacity-50"></div>
-              
               <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-6 flex items-center gap-2">
                 🌍 Global Network Analytics
               </h3>
-              
               <div className="space-y-6">
                 <div>
                   <p className="text-sm text-slate-400 mb-1">Total WLD Protected</p>
@@ -306,7 +277,6 @@ export default function App() {
                     {stats.wld.toLocaleString()} <span className="text-lg text-emerald-400">WLD</span>
                   </p>
                 </div>
-                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-950/50 rounded-xl p-4 border border-slate-800/50">
                     <p className="text-xs text-slate-400 mb-1">Active Humans</p>
@@ -320,12 +290,30 @@ export default function App() {
               </div>
             </div>
 
-            {/* Verification Call to Action */}
-            <div className="mt-auto pb-4 w-full">
+            {/* Verification Call to Action with Clickwrap */}
+            <div className="mt-auto pb-4 w-full flex flex-col gap-4">
+              
+              {/* 🚨 THE LEGAL CLICKWRAP GATE */}
+              <div className="flex items-center justify-center gap-2.5">
+                <input 
+                  type="checkbox" 
+                  id="terms" 
+                  checked={termsAccepted}
+                  onChange={(e) => {
+                    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+                    setTermsAccepted(e.target.checked);
+                  }}
+                  className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-blue-500 cursor-pointer"
+                />
+                <label htmlFor="terms" className="text-xs text-slate-400 cursor-pointer">
+                  I agree to the <a href="/terms" target="_blank" className="text-blue-400 hover:text-blue-300 underline underline-offset-2 ml-0.5">Terms of Service</a>
+                </label>
+              </div>
+
               <button 
                 onClick={handleVerify}
-                disabled={isVerifying}
-                className="w-full bg-slate-100 text-slate-900 hover:bg-white disabled:bg-slate-700 disabled:text-slate-400 font-bold py-4 px-6 rounded-2xl transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] flex items-center justify-center gap-3 text-lg m-0"
+                disabled={isVerifying || !termsAccepted}
+                className="w-full bg-slate-100 text-slate-900 hover:bg-white disabled:bg-slate-800/60 disabled:text-slate-600 font-bold py-4 px-6 rounded-2xl transition-all shadow-[0_0_40px_rgba(255,255,255,0.1)] disabled:shadow-none flex items-center justify-center gap-3 text-lg m-0"
               >
                 {isVerifying ? (
                   <span className="animate-pulse flex items-center gap-2">
@@ -336,7 +324,8 @@ export default function App() {
                   <>Verify with World ID ⚡</>
                 )}
               </button>
-              <p className="text-center text-xs text-slate-500 mt-4 font-medium m-0">
+              
+              <p className="text-center text-[10px] text-slate-500 mt-1 font-medium m-0">
                 Zero Gas Fees. 100% Non-Custodial.
               </p>
             </div>
@@ -349,7 +338,6 @@ export default function App() {
         {isVerified && (
           <div className="flex-1 flex flex-col gap-3 animate-in slide-in-from-bottom-8 duration-500 w-full mt-2">
             
-            {/* 🚨 DIAGNOSTIC CONSOLE */}
             <div className="bg-black border border-slate-800 py-1.5 px-3 rounded-lg w-full shadow-inner">
               <p className="text-[9px] text-emerald-400 font-mono truncate m-0 flex flex-row items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse block"></span>
@@ -357,7 +345,6 @@ export default function App() {
               </p>
             </div>
 
-            {/* METRICS GRID */}
             <div className="grid grid-cols-2 gap-3 w-full">
               <div className="bg-slate-900/80 border border-slate-800 py-2.5 px-4 rounded-2xl shadow-lg flex flex-col justify-center">
                 <p className="text-[9px] text-slate-500 uppercase tracking-wider font-semibold mb-0.5 m-0">Total Protected</p>
@@ -371,7 +358,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* 📈 PERFORMANCE CHART */}
             <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-3xl shadow-xl w-full">
               <div className="flex flex-row justify-between items-end mb-3">
                 <div className="flex flex-col">
@@ -398,7 +384,6 @@ export default function App() {
                     </defs>
                     <XAxis dataKey="month" stroke="#475569" fontSize={9} tickLine={false} axisLine={false} dy={8} />
                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#334155', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                    
                     <Area type="monotone" dataKey="passive" stroke="#64748b" strokeWidth={2} fillOpacity={1} fill="url(#colorPassive)" />
                     <Area type="monotone" dataKey="managed" stroke="#34d399" strokeWidth={3} fillOpacity={1} fill="url(#colorManaged)" />
                   </AreaChart>
@@ -407,10 +392,7 @@ export default function App() {
               <p className="text-[8px] text-slate-600 mt-3 m-0 text-center uppercase tracking-widest">Historical simulation vs passive holding</p>
             </div>
 
-            {/* 🤖 THE USER INTERACTION AREA */}
             <div className="w-full flex flex-col gap-2">
-              
-              {/* TABBED ACTION CENTER */}
               <div className="bg-slate-900 border border-slate-700 p-1 rounded-2xl shadow-lg flex flex-row w-full">
                 <button 
                   onClick={() => { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50); setActiveTab('agent'); }}
@@ -426,7 +408,6 @@ export default function App() {
                 </button>
               </div>
 
-              {/* ACTION CARD */}
               <div className="bg-slate-900 border border-slate-700 p-5 rounded-3xl shadow-2xl relative overflow-hidden w-full min-h-[210px] flex flex-col mb-4">
                 <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
                 
@@ -463,11 +444,9 @@ export default function App() {
                     {!proposal ? (
                       <div className="flex flex-col relative z-10 animate-in fade-in duration-300 h-full flex-grow">
                         <h2 className="text-base font-semibold text-slate-100 m-0 mb-2">Immediate Action</h2>
-                        
                         <p className="text-[11px] text-slate-400 mb-3 leading-relaxed m-0">
                           Maximize your WLD growth and income with automated AI strategies. WLDguard manages the risk while capturing elite WLD and USDC yields on Morpho.
                         </p>
-                        
                         <div className="mt-auto pt-2">
                           <button 
                             onClick={handleRunAgent}
@@ -572,7 +551,6 @@ export default function App() {
             </div>
           </div>
         )}
-        
       </div>
     </main>
   );
