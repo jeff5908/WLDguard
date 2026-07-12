@@ -2,14 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
-/* STREAMING_CHUNK:Importing the official Worldcoin MiniKit SDK... */
 import { MiniKit } from '@worldcoin/minikit-js';
 
 // ============================================================================
 // UI DATA & COMPONENTS
 // ============================================================================
 
-/* STREAMING_CHUNK:Defining the seed data for the Global Dashboard chart... */
 // 90-Day Seed Data showing the WLDguard Alpha (Outperformance)
 const performanceData = [
 { month: 'Jan', passive: 10000, managed: 10000 },
@@ -21,7 +19,6 @@ const performanceData = [
 { month: 'Jul', passive: 11000, managed: 14850 },
 ];
 
-/* STREAMING_CHUNK:Creating a custom tooltip for the Recharts graph... */
 // Custom Tooltip for the dark UI
 const CustomTooltip = ({ active, payload, label }: any) => {
 if (active && payload && payload.length) {
@@ -53,7 +50,6 @@ return null;
 // MAIN APPLICATION COMPONENT
 // ============================================================================
 export default function App() {
-/* STREAMING_CHUNK:Initializing state variables for the application... */
 const [isMounted, setIsMounted] = useState(false);
 const [isVerified, setIsVerified] = useState(false);
 const [termsAccepted, setTermsAccepted] = useState(false);
@@ -72,7 +68,6 @@ const [errorMsg, setErrorMsg] = useState<string | null>(null);
 const [debugLog, setDebugLog] = useState("System Ready.");
 const [activeIntent, setActiveIntent] = useState(null);
 
-/* STREAMING_CHUNK:Setting up useEffect for mounting and SDK initialization... */
 useEffect(() => {
 setIsMounted(true);
 
@@ -99,7 +94,6 @@ try {
 
 }, []);
 
-/* STREAMING_CHUNK:Handling the verification and Terms of Service clickwrap... */
 const handleVerify = async () => {
 if (!termsAccepted) return;
 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
@@ -131,7 +125,6 @@ try {
 
 };
 
-/* STREAMING_CHUNK:Handling the AI agent trigger... */
 const handleRunAgent = async () => {
 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
 setLoading(true);
@@ -178,7 +171,6 @@ try {
 
 };
 
-/* STREAMING_CHUNK:Handling the official execution via MiniKit... */
 const handleExecute = async () => {
 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
 
@@ -226,7 +218,6 @@ try {
 
 };
 
-/* STREAMING_CHUNK:Handling the future intent signing... */
 const handleSignIntent = () => {
 if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
 setActiveIntent({
@@ -235,7 +226,6 @@ amount: "40%"
 });
 };
 
-/* STREAMING_CHUNK:Rendering the loading state to prevent hydration errors... */
 if (!isMounted) {
 return (
 
@@ -244,12 +234,10 @@ return (
 );
 }
 
-/* STREAMING_CHUNK:Rendering the main application shell and logic... */
 return (
 
 
-  <div className="w-full max-w-md mx-auto flex flex-col gap-3 px-4 pt-4">
-    
+
     {/* SHARED HEADER */}
     <header className="flex flex-row justify-between items-center w-full">
       <div className="flex flex-col">
