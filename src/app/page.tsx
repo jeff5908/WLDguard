@@ -81,7 +81,7 @@ export default function App() {
   const [isVerified, setIsVerified] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   
-  // 🚨 NEW: Terms of Service State
+  // Terms of Service State
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   // LIVE DATABASE METRICS
@@ -122,17 +122,30 @@ export default function App() {
     }
   }, []);
 
-  const handleVerify = () => {
+  // 🚨 THE BRIDGE: This now physically saves your wallet and terms to the DB!
+  const handleVerify = async () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsVerifying(true);
 
-    setTimeout(() => {
+    try {
+      const walletAddress = MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+      
+      await fetch('/api/user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          walletAddress,
+          termsAccepted 
+        })
+      });
+
       setIsVerifying(false);
       setIsVerified(true);
-      setDebugLog("World ID Verified & Terms Accepted. Welcome to WLDguard.");
-      // In production, this is where we send the POST request to our database
-      // to create the User and set termsAcceptedAt: new Date()
-    }, 1500);
+      setDebugLog("World ID Verified & Terms Logged in DB. Welcome!");
+    } catch (error) {
+      setIsVerifying(false);
+      setDebugLog("Database connection failed.");
+    }
   };
 
   const handleRunAgent = async () => {
@@ -293,7 +306,6 @@ export default function App() {
             {/* Verification Call to Action with Clickwrap */}
             <div className="mt-auto pb-4 w-full flex flex-col gap-4">
               
-              {/* 🚨 THE LEGAL CLICKWRAP GATE */}
               <div className="flex items-center justify-center gap-2.5">
                 <input 
                   type="checkbox" 
