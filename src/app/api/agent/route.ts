@@ -61,6 +61,34 @@ export async function POST(req: Request) {
     let finalDescription = latestProposal.description;
     let finalType = latestProposal.type;
 
+    // 🚨 NEW LOGIC: Intercept "HOLD" to deploy idle funds to Morpho
+    if (latestProposal.type === 'HOLD') {
+        const wldBalance = user?.wldBalance || 0;
+        
+        if (wldBalance > 0) {
+            finalType = 'YIELD_DEPLOYMENT';
+            finalDescription = `Market is stable. Deploying 10 WLD from your idle balance into the Morpho Vault to begin earning passive APY.`;
+            
+            // Dogfooding Safety: We are strictly testing with 10 WLD (10 followed by 18 zeros for Wei math)
+            const amountWei = "10000000000000000000"; 
+
+            txData = [
+              {
+                address: WLD_ADDRESS,
+                abi: ERC20_ABI,
+                functionName: 'approve',
+                args: [MORPHO_WLD_VAULT, amountWei]
+              },
+              {
+                address: MORPHO_WLD_VAULT,
+                abi: ERC4626_ABI,
+                functionName: 'deposit',
+                args: [amountWei, userAddress]
+              }
+            ];
+        }
+    }
+
     // 3A. BUY WLD LOGIC (Requires USDC)
     if (latestProposal.type === 'BUY_WLD') {
         const usdcBalance = user?.usdcBalance || 0;
