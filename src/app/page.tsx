@@ -89,7 +89,7 @@ export default function App() {
       });
       
       setIsVerified(true);
-      setDebugLog("LOG: World ID verified. Welcome to WLDguard.");
+      setDebugLog("World ID verified. Welcome to WLDguard.");
     } catch (e) {
       console.error(e);
       setDebugLog("Failed to verify user profile.");
@@ -124,6 +124,7 @@ export default function App() {
       setProposal(data.proposal);
       setDebugLog("Dynamic proposal received from AI Backend.");
     } catch (error: any) {
+      // 10 WLD = 10000000000000000000 in Wei
       setProposal({ 
         type: 'YIELD_DEPLOYMENT', 
         description: 'Market is stable. Deploying 10 WLD to Morpho Vault.', 
@@ -132,10 +133,10 @@ export default function App() {
           address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003',
           abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
           functionName: 'transfer',
-          args: [MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', '1']
+          args: [MiniKit.walletAddress || '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045', '10000000000000000000']
         }]
       });
-      setDebugLog("API offline. Generated local verified WLD payload.");
+      setDebugLog("API offline. Generated 10 WLD local payload.");
     } finally {
       setLoading(false);
     }
@@ -254,7 +255,6 @@ export default function App() {
               </div>
             </div>
 
-            {}
             <div className="bg-slate-900/60 border border-slate-800 p-3.5 rounded-3xl shadow-xl w-full">
               <div className="flex flex-row justify-between items-end mb-3">
                 <div className="flex flex-col">
@@ -335,13 +335,12 @@ export default function App() {
 
             <div className="bg-slate-900/80 border border-slate-800 py-5 px-5 rounded-3xl shadow-lg flex flex-col justify-center w-full relative overflow-hidden">
                <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1 m-0">Your WLD Balance</p>
-               <p className="text-4xl font-extrabold text-slate-100 m-0 tracking-tight">
-                 95.07 <span className="text-base text-emerald-400 font-normal">WLD</span>
+               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1 m-0">Your Precise Balance</p>
+               <p className="text-3xl font-extrabold text-slate-100 m-0 tracking-tight">
+                 95.073708 <span className="text-base text-emerald-400 font-normal">WLD</span>
                </p>
             </div>
 
-            {}
             <div className="w-full flex flex-col gap-2">
               
               <div className="bg-slate-900 border border-slate-700 p-1 rounded-2xl shadow-lg flex flex-row w-full">
@@ -369,7 +368,6 @@ export default function App() {
                   </div>
                 )}
 
-                {}
                 {txHash && (
                   <div className="relative z-10 bg-emerald-900/50 border border-emerald-500/50 p-4 rounded-xl shadow-lg mb-4 animate-in fade-in zoom-in duration-300 flex flex-col">
                     <div className="flex items-center justify-center mb-2">
