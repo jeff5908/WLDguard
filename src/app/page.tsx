@@ -18,13 +18,13 @@ const AlphaChart = () => {
   ];
 
   return (
-    <div className="w-full h-56 bg-slate-900 rounded-3xl border border-slate-800 p-5 relative overflow-visible shadow-2xl mb-8">
-      <div className="flex justify-between items-center text-xs font-bold mb-6">
+    <div className="w-full h-44 bg-slate-900 rounded-3xl border border-slate-800 p-4 relative overflow-visible shadow-2xl mb-5 mt-2">
+      <div className="flex justify-between items-center text-xs font-bold mb-4">
         <span className="text-slate-400 tracking-wider uppercase text-[10px]">Strategy Performance</span>
         <span className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">+42.8% vs Hold</span>
       </div>
       
-      <div className="relative w-full h-28 mt-2">
+      <div className="relative w-full h-24">
         <svg viewBox="0 0 400 100" className="w-full h-full overflow-visible absolute inset-0">
           <defs>
             <linearGradient id="greenGlow" x1="0" y1="0" x2="0" y2="1">
@@ -36,7 +36,7 @@ const AlphaChart = () => {
           {/* Subtle Background Grid */}
           <path d="M0,25 L400,25 M0,50 L400,50 M0,75 L400,75" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
           
-          {/* Passive Hold Line (Dashed) */}
+          {/* Passive Hold Line (Dashed Gray) */}
           <path d="M0,80 L80,88 L160,95 L240,75 L320,90 L400,92" fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4" />
           
           {/* WLDguard Alpha Line (Emerald) */}
@@ -65,22 +65,22 @@ const AlphaChart = () => {
         {/* Dynamic Tooltip */}
         {activePoint !== null && (
           <div 
-            className="absolute z-20 bg-slate-800 border border-slate-700 p-3 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[110px]"
+            className="absolute z-20 bg-slate-800 border border-slate-700 p-2 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[100px]"
             style={{ 
               left: `${(activePoint / 5) * 100}%`, 
-              top: '-15px',
+              top: '-10px',
               transform: `translateX(${activePoint > 3 ? '-100%' : '0'})`,
-              marginLeft: activePoint > 3 ? '-15px' : '15px'
+              marginLeft: activePoint > 3 ? '-10px' : '10px'
             }}
           >
-            <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
+            <p className="text-[9px] text-slate-400 font-bold mb-1 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
             <div className="flex justify-between items-center mb-1">
-              <span className="text-xs text-emerald-400 font-bold">WLDguard</span>
-              <span className="text-xs text-emerald-400 font-mono">{data[activePoint].alpha}</span>
+              <span className="text-[10px] text-emerald-400 font-bold">WLDguard</span>
+              <span className="text-[10px] text-emerald-400 font-mono">{data[activePoint].alpha}</span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[10px] text-slate-500">Passive</span>
-              <span className="text-[10px] text-slate-500 font-mono">{data[activePoint].passive}</span>
+              <span className="text-[9px] text-slate-500">Passive</span>
+              <span className="text-[9px] text-slate-500 font-mono">{data[activePoint].passive}</span>
             </div>
           </div>
         )}
@@ -223,13 +223,19 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white p-6 font-sans">
+    <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white p-4 md:p-6 font-sans">
       
-      {/* GLOBAL HEADER */}
-      <div className="w-full max-w-md mx-auto pt-4 pb-6 flex justify-between items-center">
+      {/* GLOBAL HEADER WITH SQUIGGLY ARROW */}
+      <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
-          <h1 className="text-2xl font-bold text-white tracking-tight">WLDguard</h1>
-          <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD.</span>
+          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400">
+              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+              <polyline points="16 7 22 7 22 13"></polyline>
+            </svg>
+            WLDguard
+          </h1>
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD.</span>
         </div>
         {isVerified && (
           <button 
@@ -251,20 +257,20 @@ export default function Home() {
               <AlphaChart />
             </div>
             
-            {/* The Centered, Bold Hero Section */}
-            <div className="text-center mb-10">
-              <h1 className="text-4xl md:text-5xl font-extrabold mb-4 leading-tight tracking-tighter text-white">
+            {/* The Centered, Bold Hero Section with Gradient Font */}
+            <div className="text-center mb-6">
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
                 Protect. Earn.<br/>Compound WLD.
               </h1>
               
-              <p className="text-slate-400 leading-relaxed text-sm max-w-[280px] mx-auto">
+              <p className="text-slate-400 leading-snug text-sm max-w-[280px] mx-auto">
                 Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
               </p>
             </div>
 
             {/* Perfectly Aligned Global Network Analytics */}
-            <div className="w-full bg-slate-900 border border-slate-800 p-5 rounded-3xl mb-8 shadow-xl">
-              <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-4 text-center">Global Network Analytics</h3>
+            <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
+              <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
               <div className="flex justify-between items-center px-1">
                 <div className="flex-1 text-center">
                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
@@ -286,11 +292,11 @@ export default function Home() {
             <button 
               onClick={handleVerify}
               disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-4 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
+              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
             >
               {isLoading ? 'Verifying...' : 'Verify with World ID'}
             </button>
-            <p className="text-center text-xs text-slate-500 mt-5 font-medium tracking-wide">
+            <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
               Zero Gas Fees. 100% Non-Custodial.
             </p>
           </div>
@@ -298,7 +304,7 @@ export default function Home() {
 
         {/* VIEW 2: THE PRIVATE DASHBOARD (LOGGED IN) */}
         {isVerified && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-6">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
             
             <AlphaChart />
             
