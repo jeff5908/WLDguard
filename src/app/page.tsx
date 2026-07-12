@@ -76,11 +76,11 @@ const AlphaChart = () => {
             <p className="text-[9px] text-slate-400 font-bold mb-1 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
             <div className="flex justify-between items-center mb-1">
               <span className="text-[10px] text-emerald-400 font-bold">WLDguard</span>
-              <span className="text-[10px] text-emerald-400 font-mono">{data[activePoint].alpha}</span>
+              <span className="text-[10px] text-emerald-400 font-mono">{data[activePoint].alpha} WLD</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[9px] text-slate-500">Passive</span>
-              <span className="text-[9px] text-slate-500 font-mono">{data[activePoint].passive}</span>
+              <span className="text-[9px] text-slate-500 font-mono">{data[activePoint].passive} WLD</span>
             </div>
           </div>
         )}
@@ -263,7 +263,7 @@ export default function Home() {
                 Protect. Earn.<br/>Compound WLD.
               </h1>
               
-              <p className="text-slate-400 leading-snug text-sm max-w-[280px] mx-auto">
+              <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
                 Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
               </p>
             </div>
