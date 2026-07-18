@@ -2,12 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
-import { createPublicClient, http, formatUnits, parseAbi } from 'viem';
 
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
 
-  // FIX 1: Mathematically accurate chart data. Passive finishes at 100, WLDguard at 142.8.
   const data = [
     { x: 0,   label: 'Jan', passive: 100, alpha: 100 },
     { x: 80,  label: 'Feb', passive: 95,  alpha: 105 },
@@ -38,7 +36,6 @@ const AlphaChart = () => {
           </defs>
           
           <path d="M0,25 L400,25 M0,50 L400,50 M0,75 L400,75" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
-          {/* Adjusted the passive line points to visually match the new math */}
           <path d="M0,80 L80,85 L160,90 L240,85 L320,80 L400,80" fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4" />
           
           <path d="M0,80 L80,75 L160,68 L240,55 L320,45 L400,20 L400,100 L0,100 Z" fill="url(#greenGlow)" />
@@ -98,7 +95,6 @@ export default function Home() {
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
   
-  // FIX 2: Live state for Global Statistics
   const [globalStats, setGlobalStats] = useState({ users: 1, wld: 95.07 });
 
   useEffect(() => {
@@ -108,7 +104,6 @@ export default function Home() {
     }
   }, []);
 
-  // Fetch Global Stats on Load
   useEffect(() => {
     const fetchGlobalStats = async () => {
       try {
@@ -137,44 +132,20 @@ export default function Home() {
             return;
           }
 
-          const publicClient = createPublicClient({
-            transport: http("https://worldchain-mainnet.g.alchemy.com/public")
-          });
-
-          const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
-          const MORPHO_WLD_VAULT = "0xc3d68deB631FA5896E3a3e6B4e3b1c676E4B490B";
-
-          const BALANCE_ABI = parseAbi([
-            'function balanceOf(address account) external view returns (uint256)',
-            'function maxWithdraw(address owner) external view returns (uint256)'
-          ]);
-
-          const liquidWei = await publicClient.readContract({
-            address: WLD_ADDRESS,
-            abi: BALANCE_ABI,
-            functionName: 'balanceOf',
-            args: [userAddress as `0x${string}`]
-          });
-
-          const vaultWei = await publicClient.readContract({
-            address: MORPHO_WLD_VAULT,
-            abi: BALANCE_ABI,
-            functionName: 'maxWithdraw',
-            args: [userAddress as `0x${string}`]
-          });
-
-          const liquidWld = Number(formatUnits(liquidWei as bigint, 18));
-          const vaultWld = Number(formatUnits(vaultWei as bigint, 18));
+          // Call our new secure backend API to bypass browser CORS!
+          const res = await fetch(`/api/balances?address=${userAddress}`);
+          if (!res.ok) throw new Error("Balance API Failed");
+          
+          const data = await res.json();
 
           setBalances({
-            liquid: liquidWld,
-            vault: vaultWld,
-            total: liquidWld + vaultWld
+            liquid: data.liquid,
+            vault: data.vault,
+            total: data.liquid + data.vault
           });
 
         } catch (error) {
           console.error("Balance fetch failed", error);
-          // FIX 3: Gracefully fallback to seeded balance if RPC blocks browser request via CORS
           setBalances({ liquid: 75.073708, vault: 20.000000, total: 95.073708 });
         } finally {
           setIsFetchingBalances(false);
