@@ -1,3 +1,5 @@
+import MiniKitProvider from '../components/MiniKitProvider';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
@@ -11,7 +13,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         `}</style>
       </head>
       <body className="bg-slate-950 text-white min-h-screen w-full m-0 p-0">
-        {children}
+        <MiniKitProvider>
+          {children}
+        </MiniKitProvider>
       </body>
     </html>
   );
