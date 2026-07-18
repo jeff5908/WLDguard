@@ -126,10 +126,11 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // If MiniKit isn't ready instantly, use a test address so it ALWAYS hits the network
+          // Now that WalletAuth is real, MiniKit will have your actual wallet address!
           const targetAddress = MiniKit.walletAddress || "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
+          
+          console.log("Fetching balances for address:", targetAddress);
 
-          // Append Date.now() so the browser is forced to talk to Vercel/Alchemy
           const res = await fetch(`/api/balances?address=${targetAddress}&t=${Date.now()}`, { cache: 'no-store' });
           if (!res.ok) throw new Error("Balance API Failed");
           
@@ -143,7 +144,6 @@ export default function Home() {
 
         } catch (error) {
           console.error("Balance fetch failed", error);
-          // If the network drops, we show 0 so you know it failed, instead of the fake 95.07!
           setBalances({ liquid: 0, vault: 0, total: 0 });
         } finally {
           setIsFetchingBalances(false);
@@ -153,14 +153,39 @@ export default function Home() {
     }
   }, [isVerified]);
 
+  // 🚨 THE REAL WORLD APP HARDWARE LOGIN
   const handleVerify = async () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
-    setTimeout(() => {
-      localStorage.setItem('wldguard_session', 'active');
-      setIsVerified(true);
+
+    try {
+      if (MiniKit.isInstalled()) {
+        const result = await MiniKit.commandsAsync.walletAuth({
+          nonce: crypto.randomUUID().replace(/-/g, ""),
+          requestId: '0',
+          expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+          notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+          statement: 'Sign in to WLDguard to securely optimize your yield.',
+        });
+
+        if (result?.finalPayload?.status === 'success') {
+          localStorage.setItem('wldguard_session', 'active');
+          setIsVerified(true);
+        } else {
+          console.log("User cancelled login.");
+        }
+      } else {
+        // Fallback for laptop browser testing
+        setTimeout(() => {
+          localStorage.setItem('wldguard_session', 'active');
+          setIsVerified(true);
+        }, 1000);
+      }
+    } catch (error) {
+      console.error("Verification error:", error);
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   const handleDisconnect = () => {
@@ -256,12 +281,17 @@ export default function Home() {
           <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD.</span>
         </div>
         {isVerified && (
-          <button 
-            onClick={handleDisconnect}
-            className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-800 px-3 py-1 rounded-full"
-          >
-            Disconnect
-          </button>
+          <div className="flex items-center gap-3">
+             <span className="text-xs font-mono text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-800">
+               {MiniKit.walletAddress ? `0x..${MiniKit.walletAddress.slice(-4)}` : 'Test Mode'}
+             </span>
+            <button 
+              onClick={handleDisconnect}
+              className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-800 px-3 py-1 rounded-full"
+            >
+              Disconnect
+            </button>
+          </div>
         )}
       </div>
 
@@ -306,9 +336,9 @@ export default function Home() {
             <button 
               onClick={handleVerify}
               disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
+              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight flex justify-center items-center gap-2"
             >
-              {isLoading ? 'Verifying...' : 'Verify with World ID'}
+              {isLoading ? 'Requesting Biometrics...' : 'Verify with World ID'}
             </button>
             <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
               Zero Gas Fees. 100% Non-Custodial.
