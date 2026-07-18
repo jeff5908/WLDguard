@@ -367,61 +367,39 @@ export default function Home() {
                 <div className="relative z-10 animate-in slide-in-from-bottom-4">
                   <div className="bg-black/40 p-4 rounded-2xl border border-emerald-500/30 mb-6">
                     <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs font-bold text-emerald-400 uppercase">Action Proposed</span>
-                    <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-mono border border-emerald-500/20">
-                      {proposal.expectedYield}
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-300 leading-relaxed font-medium">
-                    {proposal.description}
-                  </p>
-                </div>
-                
-                {proposal.type === 'HOLD' || proposal.type === 'COOLDOWN' ? (
-                  <button 
-                    onClick={() => setProposal(null)}
-                    className="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
-                  >
-                    Dismiss
-                  </button>
-                ) : (
-                  <>
-                    <button 
-                      onClick={handleExecute}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
-                    >
-                      Sign & Execute
-                    </button>
-                    <button 
-                      onClick={() => setProposal(null)}
-                      className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
-                    >
-                      Cancel
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-
-        </div>
+                      <span className="text-xs font-bold text-emerald-400 uppercase">Action Proposed</span>
+                      <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-mono border border-emerald-500/20">
+                        {proposal.expectedYield}
+                      </span>
+                    </div>
                     <p className="text-sm text-slate-300 leading-relaxed font-medium">
                       {proposal.description}
                     </p>
                   </div>
                   
-                  <button 
-                    onClick={handleExecute}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
-                  >
-                    Sign & Execute
-                  </button>
-                  <button 
-                    onClick={() => setProposal(null)}
-                    className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
-                  >
-                    Cancel
-                  </button>
+                  {proposal.type === 'HOLD' || proposal.type === 'COOLDOWN' ? (
+                    <button 
+                      onClick={() => setProposal(null)}
+                      className="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
+                    >
+                      Dismiss
+                    </button>
+                  ) : (
+                    <>
+                      <button 
+                        onClick={handleExecute}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
+                      >
+                        Sign & Execute
+                      </button>
+                      <button 
+                        onClick={() => setProposal(null)}
+                        className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
