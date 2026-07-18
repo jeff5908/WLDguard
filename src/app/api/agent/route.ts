@@ -3,78 +3,52 @@ import { prisma } from '../../../lib/prisma';
 
 export async function POST(req: Request) {
   try {
-    const { userAddress } = await req.json();
+    const body = await req.json();
+    // Handle both property names just in case the frontend changes
+    const userAddress = body.userId || body.userAddress;
 
-    // 1. Resolve User (Auto-create a beta profile if they don't exist yet)
-    let user = await prisma.user.findUnique({
-       where: { walletAddress: userAddress }
-    });
-    
-    if (!user) {
-        user = await prisma.user.create({
-            data: {
-                worldId: `beta-${Date.now()}`,
-                walletAddress: userAddress,
-                wldBalance: 100
-            }
-        });
+    if (!userAddress) {
+      return NextResponse.json({ error: 'User address required' }, { status: 400 });
     }
 
-    // 2. THE NERVOUS SYSTEM COOLDOWN: Did they trade in the last 12 hours?
-    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-    const recentTrade = await prisma.trade.findFirst({
-      where: {
-        userId: user.id,
-        createdAt: { gte: twelveHoursAgo }
-      }
+    // 1. Fetch the latest proposal created by your Render Daemon from the DB
+    const latestProposal = await prisma.proposal.findFirst({
+      orderBy: { createdAt: 'desc' }
     });
 
-    if (recentTrade) {
+    // 2. If the DB is empty, default to a safe Hold
+    if (!latestProposal) {
       return NextResponse.json({
         status: 'success',
         proposal: {
-          type: 'COOLDOWN',
-          description: 'Dip successfully bought. WLDguard is resting your account for 12 hours to prevent over-exposure to consecutive market signals.',
-          expectedYield: 'Protected Status',
-          txData: null // Prevents the Execute button from appearing
+          type: 'HOLD',
+          description: 'Market is stable. Let your assets continue earning passive vault yield.',
+          expectedYield: '12.88% APY (WLD Vault)',
+          txData: null
         }
       });
     }
 
-    // 3. THE LIVE BRAIN: Fetch the MOST RECENT decision from your 24/7 AI Daemon
-    const latestProposal = await prisma.proposal.findFirst({
-      orderBy: { createdAt: 'desc' },
-    });
-
-    let finalType = latestProposal?.type || 'HOLD';
-    let finalDescription = latestProposal?.description || 'Market is stable. Let your assets continue earning passive vault yield.';
-    let expectedYield = latestProposal?.expectedYield || '12.88% APY (WLD Vault)';
-    let txData = null;
-
-    // 4. Construct the Transaction Payload based on the LIVE signal
-    if (finalType === 'BUY_WLD' || finalType === 'TRIM_WLD') {
-        // We use a safe dummy transfer here so your physical phone hardware bridge 
-        // accepts the signature without failing during our beta test!
-        txData = [{
-          address: '0x2cFc85d8E48F8EAB294be644d9E25C3030863003', // Official WLD Token Contract
-          abi: [{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}],
-          functionName: 'transfer',
-          args: [userAddress, '10000000000000000000'] // 10 WLD Test Payload
-        }];
-    }
-
+    // 3. Return the exact proposal from the Daemon to the UI
     return NextResponse.json({
       status: 'success',
       proposal: {
-        type: finalType,
-        description: finalDescription,
-        expectedYield: expectedYield,
-        txData: txData
+        type: latestProposal.type,
+        description: latestProposal.description,
+        expectedYield: latestProposal.expectedYield,
+        // Only attach a transaction payload if the AI wants us to execute a trade
+        txData: latestProposal.type !== 'HOLD' ? [
+          {
+            to: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
+            data: "0x095ea7b3000000000000000000000000c3d68deb631fa5896e3a3e6b4e3b1c676e4b490b0000000000000000000000000000000000000000000000008ac7230489e80000",
+            description: `Execute ${latestProposal.type}`
+          }
+        ] : null
       }
     });
 
   } catch (error: any) {
     console.error('Agent API Error:', error);
-    return NextResponse.json({ error: 'Failed to fetch signal' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch signal from database' }, { status: 500 });
   }
 }
