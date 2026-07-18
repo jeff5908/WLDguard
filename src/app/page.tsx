@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
+import { createPublicClient, http, formatUnits, parseAbi } from 'viem';
 
-// --- Interactive, Zero-Dependency Chart Component ---
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
 
-  // Data mapping for the interactive tooltip
   const data = [
     { x: 0,   label: 'Jan', passive: 100, alpha: 100 },
     { x: 80,  label: 'Feb', passive: 92,  alpha: 108 },
@@ -18,10 +17,14 @@ const AlphaChart = () => {
   ];
 
   return (
-    <div className="w-full h-44 bg-slate-900 rounded-3xl border border-slate-800 p-4 relative overflow-visible shadow-2xl mb-5 mt-2">
-      <div className="flex justify-between items-center text-xs font-bold mb-4">
-        <span className="text-slate-400 tracking-wider uppercase text-[10px]">Strategy Performance</span>
-        <span className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-md border border-emerald-500/20">+42.8% vs Hold</span>
+    <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-6 shadow-2xl">
+      <div className="flex justify-between items-end mb-6">
+        <div>
+          <h2 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">Strategy Performance</h2>
+          <div className="text-emerald-400 font-mono font-bold text-lg flex items-center gap-2">
+            +42.8% vs Hold
+          </div>
+        </div>
       </div>
       
       <div className="relative w-full h-24">
@@ -33,23 +36,17 @@ const AlphaChart = () => {
             </linearGradient>
           </defs>
           
-          {/* Subtle Background Grid */}
           <path d="M0,25 L400,25 M0,50 L400,50 M0,75 L400,75" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
-          
-          {/* Passive Hold Line (Dashed Gray) */}
           <path d="M0,80 L80,88 L160,95 L240,75 L320,90 L400,92" fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4" />
           
-          {/* WLDguard Alpha Line (Emerald) */}
           <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20 L400,100 L0,100 Z" fill="url(#greenGlow)" />
           <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20" fill="none" stroke="#10b981" strokeWidth="3" />
           <circle cx="400" cy="20" r="4" fill="#34d399" className="animate-pulse" />
           
-          {/* Chart Labels */}
           <text x="400" y="100" className="text-[8px] fill-slate-500" textAnchor="end">Passive</text>
           <text x="400" y="12" className="text-[8px] fill-emerald-500 font-bold tracking-wide" textAnchor="end">WLDguard</text>
         </svg>
 
-        {/* Interactive Overlay for Touch/Hover */}
         <div className="absolute inset-0 flex w-full h-full">
           {data.map((point, index) => (
             <div 
@@ -62,10 +59,9 @@ const AlphaChart = () => {
           ))}
         </div>
 
-        {/* Dynamic Tooltip */}
         {activePoint !== null && (
           <div 
-            className="absolute z-20 bg-slate-800 border border-slate-700 p-2.5 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[130px] whitespace-nowrap"
+            className="absolute z-20 bg-slate-800 border border-slate-700 p-2.5 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[140px] whitespace-nowrap"
             style={{ 
               left: `${(activePoint / 5) * 100}%`, 
               top: '-10px',
@@ -73,14 +69,14 @@ const AlphaChart = () => {
               marginLeft: activePoint > 3 ? '-10px' : '10px'
             }}
           >
-            <p className="text-[9px] text-slate-400 font-bold mb-1.5 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
+            <p className="text-[10px] text-slate-400 font-bold mb-1.5 uppercase tracking-wider border-b border-slate-700 pb-1">{data[activePoint].label} 2026</p>
             <div className="flex justify-between items-center mb-1.5 gap-3">
-              <span className="text-[10px] text-emerald-400 font-bold">WLDguard</span>
-              <span className="text-[10px] text-emerald-400 font-mono tracking-tight">{data[activePoint].alpha} WLD</span>
+              <span className="text-[11px] text-emerald-400 font-bold">WLDguard</span>
+              <span className="text-[11px] text-emerald-400 font-mono tracking-tight">{data[activePoint].alpha} WLD</span>
             </div>
             <div className="flex justify-between items-center gap-3">
-              <span className="text-[9px] text-slate-500">Passive</span>
-              <span className="text-[9px] text-slate-500 font-mono tracking-tight">{data[activePoint].passive} WLD</span>
+              <span className="text-[10px] text-slate-500">Passive</span>
+              <span className="text-[10px] text-slate-500 font-mono tracking-tight">{data[activePoint].passive} WLD</span>
             </div>
           </div>
         )}
@@ -92,7 +88,7 @@ const AlphaChart = () => {
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [proposal, setProposal] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState("");
@@ -100,7 +96,6 @@ export default function Home() {
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
 
-  // Amnesia Check
   useEffect(() => {
     setIsMounted(true);
     if (localStorage.getItem('wldguard_session') === 'active') {
@@ -113,9 +108,40 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // Hardcoded precision matching your actual on-chain output
-          let liquidWld = 75.073708;
-          let vaultWld = 20.000000;
+          const userAddress = MiniKit.walletAddress;
+          
+          // If viewing outside of World App, default to a test wallet to prove Viem works
+          const targetAddress = userAddress || "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"; 
+
+          const publicClient = createPublicClient({
+            transport: http("https://rpc.worldchain.network")
+          });
+
+          const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
+          const MORPHO_WLD_VAULT = "0xc3d68deB631FA5896E3a3e6B4e3b1c676E4B490B";
+
+          const BALANCE_ABI = parseAbi([
+            'function balanceOf(address account) external view returns (uint256)',
+            'function maxWithdraw(address owner) external view returns (uint256)'
+          ]);
+
+          const liquidWei = await publicClient.readContract({
+            address: WLD_ADDRESS,
+            abi: BALANCE_ABI,
+            functionName: 'balanceOf',
+            args: [targetAddress as `0x${string}`]
+          });
+
+          // maxWithdraw mathematically calculates exact compounded value inside Morpho
+          const vaultWei = await publicClient.readContract({
+            address: MORPHO_WLD_VAULT,
+            abi: BALANCE_ABI,
+            functionName: 'maxWithdraw',
+            args: [targetAddress as `0x${string}`]
+          });
+
+          const liquidWld = Number(formatUnits(liquidWei as bigint, 18));
+          const vaultWld = Number(formatUnits(vaultWei as bigint, 18));
 
           setBalances({
             liquid: liquidWld,
@@ -125,6 +151,8 @@ export default function Home() {
 
         } catch (error) {
           console.error("Balance fetch failed", error);
+          // If RPC fails, show an obvious 404.404 error instead of faking data
+          setBalances({ liquid: 0, vault: 0, total: 404.404040 });
         } finally {
           setIsFetchingBalances(false);
         }
@@ -144,6 +172,7 @@ export default function Home() {
   };
 
   const handleDisconnect = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     localStorage.removeItem('wldguard_session');
     setIsVerified(false);
     setProposal(null);
@@ -157,58 +186,58 @@ export default function Home() {
     setSuccessMsg("");
 
     try {
+      // Fetch the LIVE signal generated by the Render AI Daemon saved in the Neon DB
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userAddress: MiniKit.walletAddress || "0xDogfooding" })
+        body: JSON.stringify({ userId: MiniKit.walletAddress || "0xDogfooding" })
       });
       
       const data = await res.json();
       
       if (!res.ok || !data.proposal) {
+        // Fallback if DB fails to respond
          setProposal({
-            type: "YIELD_DEPLOYMENT",
-            description: "Market is stable. Deploying 10 WLD to Morpho Vault.",
-            expectedYield: "Morpho WLD Vault",
-            txData: [{
-                to: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003",
-                data: "0x095ea7b3000000000000000000000000c3d68deb631fa5896e3a3e6b4e3b1c676e4b490b0000000000000000000000000000000000000000000000008ac7230489e80000",
-                description: "Approve 10 WLD for Vault"
-            }]
+            type: "ERROR",
+            description: "Failed to reach WLDguard Quant Engine. Try again in 60 seconds.",
+            expectedYield: "Network Error",
+            txData: null
          });
       } else {
          setProposal(data.proposal);
       }
     } catch (error) {
       console.error(error);
+      setProposal({
+        type: "ERROR",
+        description: "Failed to reach WLDguard Quant Engine.",
+        expectedYield: "Network Error",
+        txData: null
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleExecute = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     if (!proposal || !proposal.txData) return;
-    
+
     try {
       if (!MiniKit.isInstalled()) {
-        alert("World App hardware bridge not detected!");
+        console.error("World App hardware bridge not detected!");
         return;
       }
       
+      // Send real transaction via World App MiniKit
       const result = await MiniKit.commandsAsync.sendTransaction({
         transaction: proposal.txData,
         reference: `wldguard-tx-${Date.now()}`
       });
 
       if (result?.finalPayload?.status === "success") {
-        setSuccessMsg("Success! Hardware accepted and executed the payload.");
+        setSuccessMsg("Success! Protocol successfully routed your liquidity.");
         setProposal(null);
-        
-        setBalances(prev => ({
-          liquid: prev.liquid - 10,
-          vault: prev.vault + 10,
-          total: prev.total
-        }));
       }
     } catch (error) {
       console.error("Execution error:", error);
@@ -218,7 +247,7 @@ export default function Home() {
   if (!isMounted) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div style={{ width: '32px', height: '32px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+        <div style={{ width: '32px', height: '32px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
       </main>
     );
   }
@@ -226,7 +255,6 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white p-4 md:p-6 font-sans">
       
-      {/* GLOBAL HEADER WITH SQUIGGLY ARROW */}
       <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -250,7 +278,6 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
-        {/* VIEW 1: THE STOREFRONT (LOGGED OUT) */}
         {!isVerified && (
           <div className="animate-in fade-in duration-500 flex flex-col items-center">
             
@@ -258,18 +285,15 @@ export default function Home() {
               <AlphaChart />
             </div>
             
-            {/* The Centered, Bold Hero Section with Gradient Font */}
             <div className="text-center mb-6">
               <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
                 Protect. Earn.<br/>Compound WLD.
               </h1>
-              
               <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
                 Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
               </p>
             </div>
 
-            {/* Perfectly Aligned Global Network Analytics */}
             <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
               <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
               <div className="flex justify-between items-center px-1">
@@ -303,13 +327,11 @@ export default function Home() {
           </div>
         )}
 
-        {/* VIEW 2: THE PRIVATE DASHBOARD (LOGGED IN) */}
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
             
             <AlphaChart />
             
-            {/* Real Balance Breakdown */}
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
               <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
               
@@ -337,7 +359,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Execution Center */}
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
               <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
               
@@ -347,7 +368,10 @@ export default function Home() {
                   <h3 className="text-lg font-bold text-emerald-400 mb-2">Vault Funded</h3>
                   <p className="text-sm text-slate-300 mb-6">{successMsg}</p>
                   <button 
-                    onClick={() => setSuccessMsg("")}
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                      setSuccessMsg("");
+                    }}
                     className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
                   >
                     Done
@@ -378,7 +402,14 @@ export default function Home() {
                     </p>
                   </div>
                   
-                  {proposal.type === 'HOLD' || proposal.type === 'COOLDOWN' ? (
+                  {proposal.txData ? (
+                    <button 
+                      onClick={handleExecute}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
+                    >
+                      Sign & Execute
+                    </button>
+                  ) : (
                     <button 
                       onClick={() => {
                         if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
@@ -388,24 +419,18 @@ export default function Home() {
                     >
                       Dismiss
                     </button>
-                  ) : (
-                    <>
-                      <button 
-                        onClick={handleExecute}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
-                      >
-                        Sign & Execute
-                      </button>
-                      <button 
-                        onClick={() => {
-                          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-                          setProposal(null);
-                        }}
-                        className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
-                      >
-                        Cancel
-                      </button>
-                    </>
+                  )}
+                  
+                  {proposal.txData && (
+                    <button 
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                        setProposal(null);
+                      }}
+                      className="w-full mt-3 text-slate-400 hover:text-white text-sm font-semibold py-2 transition-colors"
+                    >
+                      Cancel
+                    </button>
                   )}
                 </div>
               )}
