@@ -12,9 +12,9 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 1. Connect to World Chain via server (bypasses browser CORS blocks!)
+    // 🚨 FIX: Swapped to Alchemy's Public Node which does NOT block Vercel IP addresses!
     const publicClient = createPublicClient({
-      transport: http("https://rpc.worldchain.network")
+      transport: http("https://worldchain-mainnet.g.alchemy.com/public")
     });
 
     const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
@@ -25,7 +25,6 @@ export async function GET(req: Request) {
       'function maxWithdraw(address owner) external view returns (uint256)'
     ]);
 
-    // 2. Fetch the live numbers
     const liquidWei = await publicClient.readContract({
       address: WLD_ADDRESS,
       abi: BALANCE_ABI,
@@ -40,14 +39,13 @@ export async function GET(req: Request) {
       args: [address as `0x${string}`]
     });
 
-    // 3. Return the exact 18-decimal math to the frontend
     return NextResponse.json({
       liquid: Number(formatUnits(liquidWei as bigint, 18)),
       vault: Number(formatUnits(vaultWei as bigint, 18))
     });
 
-  } catch (error) {
-    console.error("Server Balance Fetch Error:", error);
-    return NextResponse.json({ error: 'Failed to fetch live balances' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Server Balance Fetch Error:", error.message);
+    return NextResponse.json({ error: error.message || 'Failed to fetch live balances' }, { status: 500 });
   }
 }
