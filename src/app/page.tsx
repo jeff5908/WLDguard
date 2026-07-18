@@ -87,7 +87,6 @@ const AlphaChart = () => {
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
-  // 🚨 NEW: We explicitly store the wallet address in React's memory so it updates the UI!
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
@@ -126,16 +125,11 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    if (isVerified) {
+    if (isVerified && walletAddress) {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // 🚨 FIX: Now we use the React state address!
-          const targetAddress = walletAddress || "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
-          
-          console.log("Fetching balances for address:", targetAddress);
-
-          const res = await fetch(`/api/balances?address=${targetAddress}&t=${Date.now()}`, { cache: 'no-store' });
+          const res = await fetch(`/api/balances?address=${walletAddress}&t=${Date.now()}`, { cache: 'no-store' });
           if (!res.ok) throw new Error("Balance API Failed");
           
           const data = await res.json();
@@ -172,8 +166,14 @@ export default function Home() {
         });
 
         if (result?.finalPayload?.status === 'success') {
-          // 🚨 FIX: Extract the address directly from the hardware payload and save it!
-          const userAddr = MiniKit.walletAddress || "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
+          // 🚨 FIX: We strictly read the actual address. No Vitalik fallback!
+          const userAddr = MiniKit.walletAddress;
+          
+          if (!userAddr) {
+             alert("Hardware Error: World App failed to provide your wallet address. Please double check that the App ID in your Developer Mode settings matches the code exactly.");
+             setIsLoading(false);
+             return;
+          }
           
           localStorage.setItem('wldguard_session', 'active');
           localStorage.setItem('wldguard_address', userAddr);
@@ -184,13 +184,11 @@ export default function Home() {
           console.log("User cancelled login.");
         }
       } else {
-        setTimeout(() => {
-          localStorage.setItem('wldguard_session', 'active');
-          setIsVerified(true);
-        }, 1000);
+        alert("MiniKit SDK is not installed or detected. Are you in the World App?");
       }
     } catch (error) {
       console.error("Verification error:", error);
+      alert("An unexpected error occurred during verification.");
     } finally {
       setIsLoading(false);
     }
@@ -278,7 +276,7 @@ export default function Home() {
   if (!isMounted) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-950">
-        <div style={{ width: '32px', height: '32px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <div style={{ width: '32px', height: '32px', border: '4px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
       </main>
     );
   }
@@ -300,7 +298,6 @@ export default function Home() {
         {isVerified && (
           <div className="flex items-center gap-3">
              <span className="text-xs font-mono text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-800">
-               {/* 🚨 This is where the magic happens! It reads the state! */}
                {walletAddress ? `0x..${walletAddress.slice(-4)}` : 'Test Mode'}
              </span>
             <button 
