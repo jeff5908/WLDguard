@@ -134,6 +134,7 @@ export default function Home() {
   }, [isVerified]);
 
   const handleVerify = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
     setTimeout(() => {
       localStorage.setItem('wldguard_session', 'active');
@@ -379,7 +380,10 @@ export default function Home() {
                   
                   {proposal.type === 'HOLD' || proposal.type === 'COOLDOWN' ? (
                     <button 
-                      onClick={() => setProposal(null)}
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                        setProposal(null);
+                      }}
                       className="w-full bg-slate-800 hover:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
                     >
                       Dismiss
@@ -393,7 +397,10 @@ export default function Home() {
                         Sign & Execute
                       </button>
                       <button 
-                        onClick={() => setProposal(null)}
+                        onClick={() => {
+                          if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+                          setProposal(null);
+                        }}
                         className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
                       >
                         Cancel
