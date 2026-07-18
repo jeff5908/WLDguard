@@ -104,10 +104,11 @@ export default function Home() {
     }
   }, []);
 
+  // 🚨 CACHE BUSTING APP STATS
   useEffect(() => {
     const fetchGlobalStats = async () => {
       try {
-        const res = await fetch('/api/stats');
+        const res = await fetch(`/api/stats?t=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
         if (data.totalUsers !== undefined) {
           setGlobalStats({ users: data.totalUsers, wld: data.totalWld });
@@ -119,34 +120,31 @@ export default function Home() {
     fetchGlobalStats();
   }, []);
 
+  // 🚨 CACHE BUSTING LIVE BALANCES
   useEffect(() => {
     if (isVerified) {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          const userAddress = MiniKit.walletAddress;
-          
-          if (!userAddress) {
-            setBalances({ liquid: 75.073708, vault: 20.000000, total: 95.073708 });
-            setIsFetchingBalances(false);
-            return;
-          }
+          // If MiniKit isn't ready instantly, use a test address so it ALWAYS hits the network
+          const targetAddress = MiniKit.walletAddress || "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
 
-          // Call our new secure backend API to bypass browser CORS!
-          const res = await fetch(`/api/balances?address=${userAddress}`);
+          // Append Date.now() so the browser is forced to talk to Vercel/Alchemy
+          const res = await fetch(`/api/balances?address=${targetAddress}&t=${Date.now()}`, { cache: 'no-store' });
           if (!res.ok) throw new Error("Balance API Failed");
           
           const data = await res.json();
 
           setBalances({
-            liquid: data.liquid,
-            vault: data.vault,
-            total: data.liquid + data.vault
+            liquid: data.liquid || 0,
+            vault: data.vault || 0,
+            total: (data.liquid || 0) + (data.vault || 0)
           });
 
         } catch (error) {
           console.error("Balance fetch failed", error);
-          setBalances({ liquid: 75.073708, vault: 20.000000, total: 95.073708 });
+          // If the network drops, we show 0 so you know it failed, instead of the fake 95.07!
+          setBalances({ liquid: 0, vault: 0, total: 0 });
         } finally {
           setIsFetchingBalances(false);
         }
