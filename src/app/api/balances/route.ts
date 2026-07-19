@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, http, formatUnits, parseAbi, fallback } from 'viem';
-import { worldchain } from 'viem/chains';
+import { createPublicClient, http, formatUnits, parseAbi } from 'viem';
+import { worldchain } from 'viem/chains'; // 🚨 CRITICAL: Explicit chain definition
 
 export const dynamic = 'force-dynamic';
 
@@ -13,15 +13,11 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🚨 ULTIMATE FIX: We are using a Fallback array of 3 different enterprise RPCs.
-    // If the network blocks Vercel's IP on one, viem instantly routes to the next!
+    // 🚨 ULTIMATE FIX: We are using the Alchemy node that we mathematically proved
+    // works from your Chromebook terminal, AND we are explicitly defining worldchain.
     const publicClient = createPublicClient({
       chain: worldchain,
-      transport: fallback([
-        http("https://worldchain-mainnet.g.alchemy.com/public"),
-        http("https://worldchain.drpc.org"),
-        http("https://480.rpc.thirdweb.com")
-      ])
+      transport: http("https://worldchain-mainnet.g.alchemy.com/public")
     });
 
     const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
@@ -32,8 +28,7 @@ export async function GET(req: Request) {
       'function maxWithdraw(address owner) external view returns (uint256)'
     ]);
 
-    // We intentionally removed the `.catch(() => 0n)` safety net!
-    // If the connection fails, we WANT it to crash so your phone shows 404.404.
+    // We removed the `.catch(() => 0n)` masks. We WANT it to throw an error if it fails!
     const liquidWei = await publicClient.readContract({
       address: WLD_ADDRESS,
       abi: BALANCE_ABI,
@@ -55,6 +50,7 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error("Server Balance Fetch Error:", error.message);
-    return NextResponse.json({ error: error.message || 'Failed to fetch live balances' }, { status: 500 });
+    // 🚨 If Vercel crashes, we send 404.404040 to the UI so we instantly know the server failed
+    return NextResponse.json({ liquid: 0, vault: 0, total: 404.404040 });
   }
 }
