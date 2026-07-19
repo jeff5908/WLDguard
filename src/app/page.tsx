@@ -166,11 +166,11 @@ export default function Home() {
         });
 
         if (result?.finalPayload?.status === 'success') {
-          // 🚨 FIX: We strictly read the actual address. No Vitalik fallback!
-          const userAddr = MiniKit.walletAddress;
+          // 🚨 THE BULLETPROOF FIX: We bypass the URL and extract the address directly from the SIWE payload!
+          const userAddr = result.finalPayload.address || MiniKit.walletAddress;
           
           if (!userAddr) {
-             alert("Hardware Error: World App failed to provide your wallet address. Please double check that the App ID in your Developer Mode settings matches the code exactly.");
+             alert("Hardware Error: Could not extract wallet address from signature. Are you in Test Mode?");
              setIsLoading(false);
              return;
           }
