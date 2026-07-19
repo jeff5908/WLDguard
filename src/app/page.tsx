@@ -8,7 +8,6 @@ import { encodeFunctionData, parseUnits } from 'viem';
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
 
-  // Data mapping for the interactive tooltip
   const data = [
     { x: 0,   label: 'Jan', passive: 100, alpha: 100 },
     { x: 80,  label: 'Feb', passive: 92,  alpha: 108 },
@@ -40,24 +39,16 @@ const AlphaChart = () => {
             </linearGradient>
           </defs>
           
-          {/* Subtle Background Grid */}
           <path d="M0,25 L400,25 M0,50 L400,50 M0,75 L400,75" stroke="#1e293b" strokeWidth="1" strokeDasharray="4 4" />
-          
-          {/* Passive Hold Line (Dashed Gray) */}
           <path d="M0,80 L80,88 L160,95 L240,75 L320,90 L400,92" fill="none" stroke="#475569" strokeWidth="2" strokeDasharray="4 4" />
-          
-          {/* WLDguard Alpha Line (Emerald) */}
           <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20 L400,100 L0,100 Z" fill="url(#greenGlow)" />
           <path d="M0,80 L80,72 L160,65 L240,55 L320,48 L400,20" fill="none" stroke="#10b981" strokeWidth="3" />
           <circle cx="400" cy="20" r="4" fill="#34d399" className="animate-pulse" />
           
-          {/* Chart Labels */}
           <text x="400" y="100" className="text-[8px] fill-slate-500" textAnchor="end">Passive</text>
           <text x="400" y="12" className="text-[8px] fill-emerald-500 font-bold tracking-wide" textAnchor="end">WLDguard</text>
         </svg>
 
-        {}
-        {/* Interactive Overlay for Touch/Hover */}
         <div className="absolute inset-0 flex w-full h-full">
           {data.map((point, index) => (
             <div 
@@ -70,7 +61,6 @@ const AlphaChart = () => {
           ))}
         </div>
 
-        {/* Dynamic Tooltip */}
         {activePoint !== null && (
           <div 
             className="absolute z-20 bg-slate-800 border border-slate-700 p-2.5 rounded-lg shadow-2xl pointer-events-none transition-all duration-75 min-w-[140px] whitespace-nowrap"
@@ -114,21 +104,28 @@ export default function Home() {
     }
   }, []);
 
+  // Restore the Live Viem Balance Fetching!
   useEffect(() => {
     if (isVerified) {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // Hardcoded beta balances (to match your actual WLD wallet state)
-          let liquidWld = 75.073708;
-          let vaultWld = 20.000000;
+          const userWallet = MiniKit.walletAddress;
+          
+          if (!userWallet) {
+            // Safe fallback if testing on a desktop browser without MiniKit
+            setBalances({ liquid: 75.07, vault: 20.00, total: 95.07 });
+            return;
+          }
 
+          const res = await fetch(`/api/balances?address=${userWallet}&timestamp=${Date.now()}`);
+          const data = await res.json();
+          
           setBalances({
-            liquid: liquidWld,
-            vault: vaultWld,
-            total: liquidWld + vaultWld
+            liquid: data.liquid || 0,
+            vault: data.vault || 0,
+            total: (data.liquid || 0) + (data.vault || 0)
           });
-
         } catch (error) {
           console.error("Balance fetch failed", error);
         } finally {
@@ -163,7 +160,7 @@ export default function Home() {
     setSuccessMsg("");
 
     try {
-      const userWallet = MiniKit.walletAddress || "0xDogfooding";
+      const userWallet = MiniKit.walletAddress || "0x0000000000000000000000000000000000000000";
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
         headers: { 
@@ -173,7 +170,6 @@ export default function Home() {
         body: JSON.stringify({ userId: userWallet })
       });
       
-      // We parse the data defensively in case Vercel threw a raw 500 HTML error page
       let data;
       try {
         data = await res.json();
@@ -192,37 +188,31 @@ export default function Home() {
          let signalType = data.signal || "HOLD";
          const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.420";
 
-         // 🚨 THE IDLE CAPITAL OVERRIDE 
-         // If market is stable, but you have idle WLD, we intercept the HOLD signal!
          if (signalType === "HOLD" && balances.liquid > 0) {
              signalType = "DEPOSIT_IDLE";
          }
 
          let microTxData = null;
          
-         // Build the 0.5 WLD transaction for ANY action other than a pure HOLD
-         if (signalType !== "HOLD" && userWallet) {
-             const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
-             const MORPHO_WLD_VAULT = "0xc3d68deB631FA5896E3a3e6B4e3b1c676E4B490B";
+         if (signalType !== "HOLD" && userWallet !== "0x0000000000000000000000000000000000000000") {
+             // 🚨 THE FIX: ALL LOWERCASE HEX ADDRESSES TO BYPASS VIEM CHECKSUM ERRORS
+             const WLD_ADDRESS = "0x2cfc85d8e48f8eab294be644d9e25c3030863003";
+             const MORPHO_WLD_VAULT = "0xc3d68deb631fa5896e3a3e6b4e3b1c676e4b490b";
              
-             // Convert 0.5 WLD into 18-decimal blockchain math
              const safeAmountWei = parseUnits("0.5", 18);
 
-             // Transaction 1: Approve Morpho to move 0.5 WLD
              const approveCalldata = encodeFunctionData({
                  abi: [{ type: 'function', name: 'approve', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }], stateMutability: 'nonpayable' }],
                  functionName: 'approve',
                  args: [MORPHO_WLD_VAULT as `0x${string}`, safeAmountWei]
              });
 
-             // Transaction 2: Deposit 0.5 WLD into the Yield Vault
              const depositCalldata = encodeFunctionData({
                  abi: [{ type: 'function', name: 'deposit', inputs: [{ name: 'assets', type: 'uint256' }, { name: 'receiver', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' }],
                  functionName: 'deposit',
                  args: [safeAmountWei, userWallet as `0x${string}`]
              });
 
-             // Bundle them together for a 1-click gasless execution
              microTxData = [
                  { to: WLD_ADDRESS, data: approveCalldata, description: "Approve 0.5 WLD for Morpho Vault" },
                  { to: MORPHO_WLD_VAULT, data: depositCalldata, description: "Deposit 0.5 WLD into Yield Vault" }
@@ -276,7 +266,6 @@ export default function Home() {
         setSuccessMsg("Success! Hardware accepted and executed the payload.");
         setProposal(null);
         
-        // Optimistically update the UI to reflect the 0.5 WLD test move
         setBalances(prev => ({
           liquid: prev.liquid - 0.5,
           vault: prev.vault + 0.5,
@@ -298,7 +287,6 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white font-sans p-4">
-      {/* GLOBAL HEADER */}
       <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -321,11 +309,8 @@ export default function Home() {
       </div>
 
       <div className="w-full max-w-md w-full">
-        
-        {/* VIEW 1: THE STOREFRONT (LOGGED OUT) */}
         {!isVerified && (
           <div className="animate-in fade-in duration-500 flex flex-col items-center">
-            
             <div className="w-full">
               <AlphaChart />
             </div>
@@ -372,10 +357,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* VIEW 2: THE PRIVATE DASHBOARD (LOGGED IN) */}
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
-            
             <AlphaChart />
             
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
@@ -433,7 +416,6 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="relative z-10 animate-in slide-in-from-bottom-4">
-                  {/* RED ERROR BOX UPGRADE */}
                   <div className={`p-4 rounded-2xl border mb-6 ${proposal.type === 'ERROR' ? 'bg-red-900/30 border-red-500/30' : 'bg-black/40 border-emerald-500/30'}`}>
                     <div className="flex justify-between items-center mb-2">
                       <span className={`text-xs font-bold uppercase ${proposal.type === 'ERROR' ? 'text-red-400' : 'text-emerald-400'}`}>
