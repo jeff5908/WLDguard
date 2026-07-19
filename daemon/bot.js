@@ -1,6 +1,30 @@
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
+// --- Telegram Push Notification System ---
+async function sendTelegramAlert(message) {
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const chatId = process.env.TELEGRAM_CHAT_ID;
+    
+    // If you haven't set up the keys yet, the bot just skips this silently
+    if (!token || !chatId) return;
+
+    try {
+        const url = `https://api.telegram.org/bot${token}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                chat_id: chatId, 
+                text: message,
+                parse_mode: 'HTML' // Allows us to use bold text in the alert
+            })
+        });
+    } catch (error) {
+        console.error("⚠️ Telegram Alert Failed:", error.message);
+    }
+}
+
 // --- Quant Math Functions ---
 function calculateSMA(prices, period) {
     if (prices.length < period) return null;
@@ -50,13 +74,11 @@ async function fetchMorphoYield(vaultAddress, chainId) {
         const data = await response.json();
         const rawApy = data?.data?.vaultByAddress?.state?.netApy;
         
-        // Morpho returns decimals (e.g., 0.1288). We convert it to a percentage (12.88).
         if (rawApy !== undefined && rawApy !== null) {
             return (rawApy * 100).toFixed(2); 
         }
         return null;
     } catch (error) {
-        console.log(`⚠️ Error fetching Morpho API for ${vaultAddress}:`, error.message);
         return null;
     }
 }
@@ -64,12 +86,10 @@ async function fetchMorphoYield(vaultAddress, chainId) {
 // --- Live Market API ---
 async function fetchLiveMarketData() {
     try {
-        // Swapped to MEXC Public API: Identical structure to Binance, but U.S. IP friendly for read-only data
         const response = await fetch('https://api.mexc.com/api/v3/klines?symbol=WLDUSDT&interval=60m&limit=20');
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const data = await response.json();
-        // MEXC returns an array of arrays. Index 4 is the closing price.
         historicalPrices = data.map(candle => parseFloat(candle[4]));
 
         return historicalPrices[historicalPrices.length - 1];
@@ -95,7 +115,6 @@ async function runMarketAnalysis() {
     
     console.log(`📊 Live WLD Price: $${livePrice.toFixed(3)}`);
 
-    // Fetch live yields (with our hardcoded fallbacks just in case the API drops)
     const wldApy = await fetchMorphoYield(MORPHO_WLD_VAULT, 480) || "12.88";
     const usdcApy = await fetchMorphoYield(MORPHO_USDC_VAULT, 480) || "12.24";
     
@@ -108,28 +127,29 @@ async function runMarketAnalysis() {
 
     let action = 'HOLD';
     let description = `Market is Stable at $${livePrice.toFixed(3)}. Let your assets continue earning passive vault yield.`;
-    // Dynamically inject the live APY into the database proposal
     let expectedYield = `${wldApy}% APY (WLD Vault)`;
+    let alertMessage = null;
 
     if (livePrice > bands.upperBand) {
         action = 'TRIM_WLD';
         description = `Market Overbought at $${livePrice.toFixed(3)}. Trimming WLD into USDC to lock in profits.`;
         expectedYield = `${usdcApy}% APY (USDC Vault)`;
-        console.log(`🚨 [SIGNAL] WLD is OVERBOUGHT! Preparing Database Broadcast...`);
+        alertMessage = `🚨 <b>WLDguard Alert</b>\n\nMarket is <b>OVERBOUGHT</b> at $${livePrice.toFixed(3)}!\n\nOpen World App to deploy your WLD to USDC vaults.`;
+        console.log(`🚨 [SIGNAL] WLD is OVERBOUGHT! Preparing Broadcast...`);
     } else if (livePrice < bands.lowerBand) {
         action = 'BUY_WLD';
         description = `Market Oversold at $${livePrice.toFixed(3)}. Buying WLD with parked USDC.`;
         expectedYield = `${wldApy}% APY (WLD Vault)`;
-        console.log(`🚨 [SIGNAL] WLD is OVERSOLD! Preparing Database Broadcast...`);
+        alertMessage = `🚨 <b>WLDguard Alert</b>\n\nMarket is <b>OVERSOLD</b> at $${livePrice.toFixed(3)}!\n\nOpen World App to buy the WLD dip with your parked USDC.`;
+        console.log(`🚨 [SIGNAL] WLD is OVERSOLD! Preparing Broadcast...`);
     } else {
         console.log(`🛡️ Market is Stable. No trade required.`);
     }
 
-    // --- Resilient Database Connection (Retry Logic for Neon Cold Starts) ---
+    // --- Resilient Database Connection ---
     let retries = 3;
     while (retries > 0) {
         try {
-            // Find our active beta tester
             const users = await prisma.user.findMany();
             
             if (users.length > 0) {
@@ -147,17 +167,19 @@ async function runMarketAnalysis() {
                     });
                 }
                 console.log(`✅ Success! Database updated.`);
-            } else {
-                console.log(`⚠️ No users found in database to broadcast to.`);
+                
+                // 🚨 If the AI generated an alert, send the push notification to your phone!
+                if (alertMessage) {
+                    await sendTelegramAlert(alertMessage);
+                    console.log(`📱 Push notification sent to Telegram.`);
+                }
             }
-            break; // Success! Exit the retry loop
+            break; 
         } catch (error) {
             retries -= 1;
-            console.log(`⚠️ Database asleep. Retrying in 3 seconds... (${retries} attempts left)`);
             if (retries === 0) {
-                console.log(`❌ Database connection failed after retries:`, error.message);
+                console.log(`❌ Database connection failed:`, error.message);
             } else {
-                // Wait 3 seconds for Neon to wake up before trying again
                 await new Promise(res => setTimeout(res, 3000));
             }
         }
@@ -168,8 +190,5 @@ console.log("=============================================");
 console.log("🚀 Starting WLDguard 24/7 Quant Engine...");
 console.log("=============================================");
 
-// Run immediately on startup
 runMarketAnalysis();
-
-// Then run every 5 minutes (300,000 milliseconds)
 setInterval(runMarketAnalysis, 300000);
