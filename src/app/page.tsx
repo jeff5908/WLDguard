@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
+import { TrendingUp, LogOut } from 'lucide-react'; 
+import { encodeFunctionData, parseUnits } from 'viem';
 
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
@@ -129,7 +131,6 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // 🚨 AGGRESSIVE CACHE BUSTING: Force Vercel to run the new code!
           const res = await fetch(`/api/balances?address=${walletAddress}&t=${Date.now()}`, { 
             method: 'GET',
             cache: 'no-store',
@@ -144,7 +145,6 @@ export default function Home() {
           
           const data = await res.json();
 
-          // 🚨 Ensure we don't accidentally hide the 404 error
           if (data.total === 404.404040) {
             setBalances({ liquid: 0, vault: 0, total: 404.404040 });
             return;
@@ -158,7 +158,6 @@ export default function Home() {
 
         } catch (error) {
           console.error("Balance fetch failed", error);
-          // 🚨 UNMASKING THE ERROR: We WANT to see the 404.404040 if it crashes!
           setBalances({ liquid: 0, vault: 0, total: 404.404040 });
         } finally {
           setIsFetchingBalances(false);
@@ -173,34 +172,36 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      if (MiniKit.isInstalled()) {
-        const result = await MiniKit.commandsAsync.walletAuth({
-          nonce: crypto.randomUUID().replace(/-/g, ""),
-          requestId: '0',
-          expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-          notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
-          statement: 'Sign in to WLDguard to securely optimize your yield.',
-        });
-
-        if (result?.finalPayload?.status === 'success') {
-          const userAddr = result.finalPayload.address || MiniKit.walletAddress;
-          
-          if (!userAddr) {
-             alert("Hardware Error: Could not extract wallet address from signature. Are you in Test Mode?");
-             setIsLoading(false);
-             return;
-          }
-          
-          localStorage.setItem('wldguard_session', 'active');
-          localStorage.setItem('wldguard_address', userAddr);
-          
-          setWalletAddress(userAddr);
-          setIsVerified(true);
-        } else {
-          console.log("User cancelled login.");
-        }
-      } else {
+      if (!MiniKit.isInstalled()) {
         alert("MiniKit SDK is not installed or detected. Are you in the World App?");
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await MiniKit.commandsAsync.walletAuth({
+        nonce: crypto.randomUUID().replace(/-/g, ""),
+        requestId: '0',
+        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+        statement: 'Sign in to WLDguard to securely optimize your yield.',
+      });
+
+      if (result?.finalPayload?.status === 'success') {
+        const trueWalletAddress = result.finalPayload.address;
+        
+        if (!trueWalletAddress) {
+           alert("Hardware Error: Could not extract wallet address from signature.");
+           setIsLoading(false);
+           return;
+        }
+        
+        localStorage.setItem('wldguard_session', 'active');
+        localStorage.setItem('wldguard_address', trueWalletAddress);
+        
+        setWalletAddress(trueWalletAddress);
+        setIsVerified(true);
+      } else {
+        console.log("User cancelled login.");
       }
     } catch (error) {
       console.error("Verification error:", error);
@@ -243,9 +244,39 @@ export default function Home() {
             txData: null
          });
       } else {
-         // 🚨 FIX: Add safe formatting for the price returned from the Daemon
          const signalType = data.signal || "HOLD";
          const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.420";
+
+         // 🚨 SAFE MICRO-TRANSACTION LOGIC (0.5 WLD)
+         let microTxData = null;
+         
+         if (signalType !== "HOLD" && walletAddress) {
+             const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
+             const MORPHO_WLD_VAULT = "0xc3d68deB631FA5896E3a3e6B4e3b1c676E4B490B";
+             
+             // Convert 0.5 WLD into 18-decimal blockchain math
+             const safeAmountWei = parseUnits("0.5", 18);
+
+             // Transaction 1: Approve Morpho to move 0.5 WLD
+             const approveCalldata = encodeFunctionData({
+                 abi: [{ type: 'function', name: 'approve', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }], stateMutability: 'nonpayable' }],
+                 functionName: 'approve',
+                 args: [MORPHO_WLD_VAULT as `0x${string}`, safeAmountWei]
+             });
+
+             // Transaction 2: Deposit 0.5 WLD into the Yield Vault
+             const depositCalldata = encodeFunctionData({
+                 abi: [{ type: 'function', name: 'deposit', inputs: [{ name: 'assets', type: 'uint256' }, { name: 'receiver', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' }],
+                 functionName: 'deposit',
+                 args: [safeAmountWei, walletAddress as `0x${string}`]
+             });
+
+             // Bundle them together for a 1-click gasless execution!
+             microTxData = [
+                 { to: WLD_ADDRESS, data: approveCalldata, description: "Approve 0.5 WLD for Morpho Vault" },
+                 { to: MORPHO_WLD_VAULT, data: depositCalldata, description: "Deposit 0.5 WLD into Yield Vault" }
+             ];
+         }
 
          setProposal({
             type: signalType,
@@ -253,7 +284,7 @@ export default function Home() {
               ? `Market is Stable at $${formattedPrice}. Let your assets continue earning passive vault yield.`
               : `Market overextended. Target execution at $${formattedPrice}.`,
             expectedYield: signalType === "HOLD" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
-            txData: signalType === "HOLD" ? null : [{ to: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003", data: "0x095ea7b3000000000000000000000000c3d68deb631fa5896e3a3e6b4e3b1c676e4b490b0000000000000000000000000000000000000000000000008ac7230489e80000", description: "Deposit to Morpho Vault" }]
+            txData: microTxData
          });
       }
     } catch (error) {
@@ -304,36 +335,31 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white p-4 md:p-6 font-sans">
       
-      <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
-        <div className="flex flex-col">
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400">
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-              <polyline points="16 7 22 7 22 13"></polyline>
-            </svg>
-            WLDguard
-          </h1>
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD.</span>
-        </div>
-        {isVerified && (
-          <div className="flex items-center gap-3">
-             <span className="text-xs font-mono text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-800">
-               {walletAddress ? `0x..${walletAddress.slice(-4)}` : 'Test Mode'}
-             </span>
+      <div className="w-full max-w-md mx-auto pt-6 px-4 pb-2">
+        <header className="flex justify-between items-center">
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
+              <TrendingUp className="text-blue-500" /> WLDguard
+            </h1>
+            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">
+              Protect. Earn. Compound WLD.
+            </span>
+          </div>
+          {isVerified && (
             <button 
               onClick={handleDisconnect}
-              className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-800 px-3 py-1 rounded-full"
+              className="bg-slate-900 hover:bg-slate-800 p-2 rounded-full border border-slate-800 transition-colors"
             >
-              Disconnect
+              <LogOut size={16} className="text-slate-400" />
             </button>
-          </div>
-        )}
+          )}
+        </header>
       </div>
 
       <div className="w-full max-w-md w-full">
         
         {!isVerified && (
-          <div className="animate-in fade-in duration-500 flex flex-col items-center">
+          <div className="animate-in fade-in duration-500 flex flex-col items-center mt-6">
             
             <div className="w-full">
               <AlphaChart />
@@ -371,7 +397,7 @@ export default function Home() {
             <button 
               onClick={handleVerify}
               disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight flex justify-center items-center gap-2"
+              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
             >
               {isLoading ? 'Requesting Biometrics...' : 'Verify with World ID'}
             </button>
@@ -382,7 +408,7 @@ export default function Home() {
         )}
 
         {isVerified && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5 mt-6">
             
             <AlphaChart />
             
@@ -392,8 +418,8 @@ export default function Home() {
               {isFetchingBalances ? (
                 <div className="h-10 bg-slate-800 rounded animate-pulse w-48 mb-6"></div>
               ) : (
-                <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
-                  {balances.total.toFixed(6)} WLD
+                <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight flex items-baseline gap-2">
+                  {balances.total.toFixed(6)} <span className="text-lg text-slate-500">WLD</span>
                 </div>
               )}
 
@@ -402,7 +428,9 @@ export default function Home() {
                   <span className="flex items-center gap-2 text-slate-300">
                     <span className="w-2 h-2 rounded-full bg-blue-500"></span> Liquid Wallet
                   </span>
-                  <span className="font-mono">{balances.liquid.toFixed(6)}</span>
+                  <span className="font-mono text-slate-300">
+                     {walletAddress ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : ''}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="flex items-center gap-2 text-emerald-400 font-medium">
