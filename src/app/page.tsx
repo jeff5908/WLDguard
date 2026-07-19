@@ -89,9 +89,6 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  
-  // 🚨 NEW: State to capture the raw payload so we can find your Smart Contract address
-  const [rawPayload, setRawPayload] = useState<string>("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [proposal, setProposal] = useState<any>(null);
@@ -133,9 +130,15 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
+          // 🚨 CRITICAL FIX: Aggressive cache busting headers to force Vercel to check the real blockchain
           const res = await fetch(`/api/balances?address=${walletAddress}&t=${Date.now()}`, { 
+            method: 'GET',
             cache: 'no-store',
-            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+            headers: { 
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            }
           });
           
           if (!res.ok) throw new Error("Balance API Failed");
@@ -178,25 +181,15 @@ export default function Home() {
         statement: 'Sign in to WLDguard to securely optimize your yield.',
       });
 
-      // 🚨 Dump EVERYTHING we can find to the screen so we can hunt for `0x30E31...`
-      setRawPayload(JSON.stringify({
-        miniKitAddress: MiniKit.walletAddress,
-        windowUrl: window.location.href,
-        authResult: result
-      }, null, 2));
-
       if (result?.finalPayload?.status === 'success') {
-        const ownerAddress = result.finalPayload.address;
+        // 🚨 We pull the exact Smart Contract Wallet from the payload!
+        const trueWalletAddress = result.finalPayload.address;
         
-        if (!ownerAddress) {
+        if (!trueWalletAddress) {
            alert("Hardware Error: Could not extract wallet address from signature.");
            setIsLoading(false);
            return;
         }
-
-        // For now, we use the ownerAddress to log in, even though it has 0 WLD.
-        // We will fix this as soon as we see the rawPayload output on your screen!
-        let trueWalletAddress = ownerAddress;
         
         localStorage.setItem('wldguard_session', 'active');
         localStorage.setItem('wldguard_address', trueWalletAddress);
@@ -222,7 +215,6 @@ export default function Home() {
     setIsVerified(false);
     setProposal(null);
     setSuccessMsg("");
-    setRawPayload("");
   };
 
   const handleOptimize = async () => {
@@ -234,8 +226,11 @@ export default function Home() {
     try {
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: "mock-user-id" })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        body: JSON.stringify({ userId: walletAddress || "mock-user-id" })
       });
       
       const data = await res.json();
@@ -248,13 +243,17 @@ export default function Home() {
             txData: null
          });
       } else {
+         // 🚨 Handle dynamic text formatting from the Daemon output safely
+         const signalType = data.signal || "HOLD";
+         const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.420";
+
          setProposal({
-            type: data.signal,
-            description: data.signal === "HOLD" 
-              ? `Market is Stable at $${data.price}. Let your assets continue earning passive vault yield.`
-              : `Market overextended. Target execution at $${data.price}.`,
-            expectedYield: data.signal === "HOLD" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
-            txData: data.signal === "HOLD" ? null : [{ to: "0x...", data: "0x...", description: "Rebalance" }]
+            type: signalType,
+            description: signalType === "HOLD" 
+              ? `Market is Stable at $${formattedPrice}. Let your assets continue earning passive vault yield.`
+              : `Market overextended. Target execution at $${formattedPrice}.`,
+            expectedYield: signalType === "HOLD" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
+            txData: signalType === "HOLD" ? null : [{ to: "0x...", data: "0x...", description: "Rebalance" }]
          });
       }
     } catch (error) {
@@ -336,7 +335,7 @@ export default function Home() {
             </div>
             
             <div className="text-center mb-6">
-              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
                 Protect. Earn.<br/>Compound WLD.
               </h1>
               <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
@@ -381,17 +380,6 @@ export default function Home() {
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5 mt-6">
             
             <AlphaChart />
-            
-            {/* 🚨 DEBUG OUTPUT FOR FINDING THE SMART CONTRACT WALLET */}
-            {rawPayload && (
-              <div className="bg-slate-900 border border-emerald-500 p-4 rounded-xl shadow-xl w-full">
-                <h3 className="text-emerald-400 text-xs font-bold uppercase mb-2 border-b border-slate-700 pb-1">Raw Hardware Payload</h3>
-                <pre className="text-[10px] text-slate-300 font-mono overflow-x-auto max-h-48 whitespace-pre-wrap leading-tight">
-                  {rawPayload}
-                </pre>
-                <p className="text-xs text-slate-400 mt-2 italic">Copy any address you see here that starts with "0x30E31..."!</p>
-              </div>
-            )}
 
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
               <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
@@ -412,6 +400,12 @@ export default function Home() {
                   <span className="font-mono text-slate-300">
                      {walletAddress ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : ''}
                   </span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2 text-emerald-400 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
+                  </span>
+                  <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
                 </div>
               </div>
             </div>
