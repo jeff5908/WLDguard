@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, http, formatUnits, parseAbi } from 'viem';
-import { worldchain } from 'viem/chains'; // 🚨 CRITICAL: Explicit chain definition
+import { createPublicClient, http, formatUnits, parseAbi, fallback } from 'viem';
+import { worldchain } from 'viem/chains'; 
 
 export const dynamic = 'force-dynamic';
 
@@ -13,11 +13,16 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🚨 ULTIMATE FIX: We are using the Alchemy node that we mathematically proved
-    // works from your Chromebook terminal, AND we are explicitly defining worldchain.
+    // 🚨 ULTIMATE FIX: Fallback Array. If Alchemy blocks Vercel's AWS IP, 
+    // viem will instantly reroute to DRPC, ThirdWeb, or the Official Node!
     const publicClient = createPublicClient({
       chain: worldchain,
-      transport: http("https://worldchain-mainnet.g.alchemy.com/public")
+      transport: fallback([
+        http("https://worldchain-mainnet.g.alchemy.com/public"),
+        http("https://worldchain.drpc.org"),
+        http("https://480.rpc.thirdweb.com"),
+        http("https://rpc.worldchain.network")
+      ])
     });
 
     const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
@@ -28,12 +33,15 @@ export async function GET(req: Request) {
       'function maxWithdraw(address owner) external view returns (uint256)'
     ]);
 
-    // We removed the `.catch(() => 0n)` masks. We WANT it to throw an error if it fails!
+    // 🚨 INDIVIDUAL SAFETY NETS: If the Vault fails, the Liquid Balance survives!
     const liquidWei = await publicClient.readContract({
       address: WLD_ADDRESS,
       abi: BALANCE_ABI,
       functionName: 'balanceOf',
       args: [address as `0x${string}`]
+    }).catch((err) => {
+      console.error("Liquid Balance Error:", err.message);
+      return 0n; 
     });
 
     const vaultWei = await publicClient.readContract({
@@ -41,6 +49,9 @@ export async function GET(req: Request) {
       abi: BALANCE_ABI,
       functionName: 'maxWithdraw',
       args: [address as `0x${string}`]
+    }).catch((err) => {
+      console.error("Vault Balance Error:", err.message);
+      return 0n; 
     });
 
     return NextResponse.json({
@@ -50,7 +61,6 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error("Server Balance Fetch Error:", error.message);
-    // 🚨 If Vercel crashes, we send 404.404040 to the UI so we instantly know the server failed
     return NextResponse.json({ liquid: 0, vault: 0, total: 404.404040 });
   }
 }
