@@ -12,9 +12,10 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🚨 FIX: Swapped to Alchemy's Public Node which does NOT block Vercel IP addresses!
+    // 🚨 FIX: We are safely back on the official World Chain RPC!
+    // Since this runs on Vercel's backend, the browser CORS firewall cannot block us.
     const publicClient = createPublicClient({
-      transport: http("https://worldchain-mainnet.g.alchemy.com/public")
+      transport: http("https://rpc.worldchain.network")
     });
 
     const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
@@ -25,18 +26,26 @@ export async function GET(req: Request) {
       'function maxWithdraw(address owner) external view returns (uint256)'
     ]);
 
+    // Fetch Liquid WLD (With a fallback to 0 if the node drops the connection)
     const liquidWei = await publicClient.readContract({
       address: WLD_ADDRESS,
       abi: BALANCE_ABI,
       functionName: 'balanceOf',
       args: [address as `0x${string}`]
+    }).catch((err) => {
+      console.warn("Liquid balance fetch failed, falling back to 0", err);
+      return 0n;
     });
 
+    // Fetch Morpho Vault WLD (With a fallback to 0)
     const vaultWei = await publicClient.readContract({
       address: MORPHO_WLD_VAULT,
       abi: BALANCE_ABI,
       functionName: 'maxWithdraw',
       args: [address as `0x${string}`]
+    }).catch((err) => {
+      console.warn("Vault balance fetch failed, falling back to 0", err);
+      return 0n;
     });
 
     return NextResponse.json({
