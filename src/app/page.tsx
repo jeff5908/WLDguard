@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { TrendingUp, LogOut } from 'lucide-react'; 
 
-// --- Interactive, Zero-Dependency Chart Component ---
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
 
@@ -90,6 +89,9 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  
+  // 🚨 NEW: State to capture the raw payload so we can find your Smart Contract address
+  const [rawPayload, setRawPayload] = useState<string>("");
 
   const [isLoading, setIsLoading] = useState(false);
   const [proposal, setProposal] = useState<any>(null);
@@ -176,6 +178,13 @@ export default function Home() {
         statement: 'Sign in to WLDguard to securely optimize your yield.',
       });
 
+      // 🚨 Dump EVERYTHING we can find to the screen so we can hunt for `0x30E31...`
+      setRawPayload(JSON.stringify({
+        miniKitAddress: MiniKit.walletAddress,
+        windowUrl: window.location.href,
+        authResult: result
+      }, null, 2));
+
       if (result?.finalPayload?.status === 'success') {
         const ownerAddress = result.finalPayload.address;
         
@@ -185,19 +194,9 @@ export default function Home() {
            return;
         }
 
-        // 🚨 CRITICAL FIX: The owner address is NOT the address that holds the WLD!
-        // We must ask the World App to resolve the owner address into the true Smart Contract address.
+        // For now, we use the ownerAddress to log in, even though it has 0 WLD.
+        // We will fix this as soon as we see the rawPayload output on your screen!
         let trueWalletAddress = ownerAddress;
-        try {
-          // This MiniKit command maps the owner key to the user's actual profile/wallet
-          const userInfo = await MiniKit.getUserByAddress(ownerAddress);
-          if (userInfo && userInfo.walletAddress) {
-            trueWalletAddress = userInfo.walletAddress;
-            console.log("Successfully resolved Smart Contract Wallet:", trueWalletAddress);
-          }
-        } catch (resolveError) {
-          console.warn("Failed to resolve true wallet address, falling back to owner address.", resolveError);
-        }
         
         localStorage.setItem('wldguard_session', 'active');
         localStorage.setItem('wldguard_address', trueWalletAddress);
@@ -223,6 +222,7 @@ export default function Home() {
     setIsVerified(false);
     setProposal(null);
     setSuccessMsg("");
+    setRawPayload("");
   };
 
   const handleOptimize = async () => {
@@ -329,15 +329,39 @@ export default function Home() {
       <div className="w-full max-w-md w-full">
         
         {!isVerified && (
-          <div className="animate-in fade-in duration-500 flex flex-col items-center mt-10">
+          <div className="animate-in fade-in duration-500 flex flex-col items-center mt-6">
             
-            <div className="text-center mb-10">
-              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+            <div className="w-full">
+              <AlphaChart />
+            </div>
+            
+            <div className="text-center mb-6">
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
                 Protect. Earn.<br/>Compound WLD.
               </h1>
               <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
-                Your intelligent assistant dedicated to compounding Worldcoin.
+                Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
               </p>
+            </div>
+
+            <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
+              <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
+              <div className="flex justify-between items-center px-1">
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
+                  <p className="text-white font-mono font-bold text-sm">{globalStats.wld.toFixed(0)} WLD</p>
+                </div>
+                <div className="w-px h-6 bg-slate-800"></div>
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
+                  <p className="text-white font-mono font-bold text-sm">{globalStats.users}</p>
+                </div>
+                <div className="w-px h-6 bg-slate-800"></div>
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">WLD Target Yield</p>
+                  <p className="text-emerald-400 font-mono font-bold text-sm">12.88% APY</p>
+                </div>
+              </div>
             </div>
 
             <button 
@@ -358,6 +382,17 @@ export default function Home() {
             
             <AlphaChart />
             
+            {/* 🚨 DEBUG OUTPUT FOR FINDING THE SMART CONTRACT WALLET */}
+            {rawPayload && (
+              <div className="bg-slate-900 border border-emerald-500 p-4 rounded-xl shadow-xl w-full">
+                <h3 className="text-emerald-400 text-xs font-bold uppercase mb-2 border-b border-slate-700 pb-1">Raw Hardware Payload</h3>
+                <pre className="text-[10px] text-slate-300 font-mono overflow-x-auto max-h-48 whitespace-pre-wrap leading-tight">
+                  {rawPayload}
+                </pre>
+                <p className="text-xs text-slate-400 mt-2 italic">Copy any address you see here that starts with "0x30E31..."!</p>
+              </div>
+            )}
+
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
               <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
               
