@@ -48,6 +48,7 @@ const AlphaChart = () => {
           <text x="400" y="12" className="text-[8px] fill-emerald-500 font-bold tracking-wide" textAnchor="end">WLDguard</text>
         </svg>
 
+        {}
         <div className="absolute inset-0 flex w-full h-full">
           {data.map((point, index) => (
             <div 
@@ -230,7 +231,10 @@ export default function Home() {
     try {
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
         body: JSON.stringify({ userId: walletAddress || "mock-user-id" })
       });
       
@@ -244,12 +248,18 @@ export default function Home() {
             txData: null
          });
       } else {
-         const signalType = data.signal || "HOLD";
+         let signalType = data.signal || "HOLD";
          const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.420";
 
-         // 🚨 SAFE MICRO-TRANSACTION LOGIC (0.5 WLD)
+         // 🚨 THE IDLE CAPITAL OVERRIDE 
+         // If market is stable, but you have idle WLD, we intercept the HOLD signal!
+         if (signalType === "HOLD" && balances.liquid > 0) {
+             signalType = "DEPOSIT_IDLE";
+         }
+
          let microTxData = null;
          
+         // Build the 0.5 WLD transaction for ANY action other than a pure HOLD
          if (signalType !== "HOLD" && walletAddress) {
              const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
              const MORPHO_WLD_VAULT = "0xc3d68deB631FA5896E3a3e6B4e3b1c676E4B490B";
@@ -271,19 +281,26 @@ export default function Home() {
                  args: [safeAmountWei, walletAddress as `0x${string}`]
              });
 
-             // Bundle them together for a 1-click gasless execution!
+             // Bundle them together for a 1-click gasless execution
              microTxData = [
                  { to: WLD_ADDRESS, data: approveCalldata, description: "Approve 0.5 WLD for Morpho Vault" },
                  { to: MORPHO_WLD_VAULT, data: depositCalldata, description: "Deposit 0.5 WLD into Yield Vault" }
              ];
          }
 
+         let finalDescription = "";
+         if (signalType === "HOLD") {
+             finalDescription = `Market is Stable at $${formattedPrice}. Let your assets continue earning passive vault yield.`;
+         } else if (signalType === "DEPOSIT_IDLE") {
+             finalDescription = `Market is stable at $${formattedPrice}, but you have idle WLD! Deploying a 0.5 WLD test transaction to Morpho to start earning yield.`;
+         } else {
+             finalDescription = `Market overextended. Target execution at $${formattedPrice}.`;
+         }
+
          setProposal({
             type: signalType,
-            description: signalType === "HOLD" 
-              ? `Market is Stable at $${formattedPrice}. Let your assets continue earning passive vault yield.`
-              : `Market overextended. Target execution at $${formattedPrice}.`,
-            expectedYield: signalType === "HOLD" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
+            description: finalDescription,
+            expectedYield: signalType === "HOLD" || signalType === "DEPOSIT_IDLE" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
             txData: microTxData
          });
       }
@@ -358,6 +375,7 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
+        {}
         {!isVerified && (
           <div className="animate-in fade-in duration-500 flex flex-col items-center mt-6">
             
@@ -407,6 +425,7 @@ export default function Home() {
           </div>
         )}
 
+        {}
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5 mt-6">
             
@@ -441,6 +460,7 @@ export default function Home() {
               </div>
             </div>
 
+            {}
             <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
               <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
               
