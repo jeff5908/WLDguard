@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
+import { TrendingUp, LogOut } from 'lucide-react'; 
 
+// --- Interactive, Zero-Dependency Chart Component ---
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
 
@@ -129,7 +131,11 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          const res = await fetch(`/api/balances?address=${walletAddress}&t=${Date.now()}`, { cache: 'no-store' });
+          const res = await fetch(`/api/balances?address=${walletAddress}&t=${Date.now()}`, { 
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+          });
+          
           if (!res.ok) throw new Error("Balance API Failed");
           
           const data = await res.json();
@@ -142,8 +148,7 @@ export default function Home() {
 
         } catch (error) {
           console.error("Balance fetch failed", error);
-          // 🚨 DEBUG: If Alchemy drops the connection, show 404.404. If we see 0, we know the wallet is truly empty!
-          setBalances({ liquid: 0, vault: 0, total: 404.404040 });
+          setBalances({ liquid: 0, vault: 0, total: 0 });
         } finally {
           setIsFetchingBalances(false);
         }
@@ -157,34 +162,50 @@ export default function Home() {
     setIsLoading(true);
 
     try {
-      if (MiniKit.isInstalled()) {
-        const result = await MiniKit.commandsAsync.walletAuth({
-          nonce: crypto.randomUUID().replace(/-/g, ""),
-          requestId: '0',
-          expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-          notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
-          statement: 'Sign in to WLDguard to securely optimize your yield.',
-        });
-
-        if (result?.finalPayload?.status === 'success') {
-          const userAddr = result.finalPayload.address || MiniKit.walletAddress;
-          
-          if (!userAddr) {
-             alert("Hardware Error: Could not extract wallet address from signature. Are you in Test Mode?");
-             setIsLoading(false);
-             return;
-          }
-          
-          localStorage.setItem('wldguard_session', 'active');
-          localStorage.setItem('wldguard_address', userAddr);
-          
-          setWalletAddress(userAddr);
-          setIsVerified(true);
-        } else {
-          console.log("User cancelled login.");
-        }
-      } else {
+      if (!MiniKit.isInstalled()) {
         alert("MiniKit SDK is not installed or detected. Are you in the World App?");
+        setIsLoading(false);
+        return;
+      }
+
+      const result = await MiniKit.commandsAsync.walletAuth({
+        nonce: crypto.randomUUID().replace(/-/g, ""),
+        requestId: '0',
+        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+        statement: 'Sign in to WLDguard to securely optimize your yield.',
+      });
+
+      if (result?.finalPayload?.status === 'success') {
+        const ownerAddress = result.finalPayload.address;
+        
+        if (!ownerAddress) {
+           alert("Hardware Error: Could not extract wallet address from signature.");
+           setIsLoading(false);
+           return;
+        }
+
+        // 🚨 CRITICAL FIX: The owner address is NOT the address that holds the WLD!
+        // We must ask the World App to resolve the owner address into the true Smart Contract address.
+        let trueWalletAddress = ownerAddress;
+        try {
+          // This MiniKit command maps the owner key to the user's actual profile/wallet
+          const userInfo = await MiniKit.getUserByAddress(ownerAddress);
+          if (userInfo && userInfo.walletAddress) {
+            trueWalletAddress = userInfo.walletAddress;
+            console.log("Successfully resolved Smart Contract Wallet:", trueWalletAddress);
+          }
+        } catch (resolveError) {
+          console.warn("Failed to resolve true wallet address, falling back to owner address.", resolveError);
+        }
+        
+        localStorage.setItem('wldguard_session', 'active');
+        localStorage.setItem('wldguard_address', trueWalletAddress);
+        
+        setWalletAddress(trueWalletAddress);
+        setIsVerified(true);
+      } else {
+        console.log("User cancelled login.");
       }
     } catch (error) {
       console.error("Verification error:", error);
@@ -284,74 +305,45 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white p-4 md:p-6 font-sans">
       
-      <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
-        <div className="flex flex-col">
-          <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-400">
-              <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-              <polyline points="16 7 22 7 22 13"></polyline>
-            </svg>
-            WLDguard
-          </h1>
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD.</span>
-        </div>
-        {isVerified && (
-          <div className="flex items-center gap-3">
-             <span className="text-xs font-mono text-emerald-400 bg-emerald-900/30 px-2 py-1 rounded-md border border-emerald-800">
-               {walletAddress ? `0x..${walletAddress.slice(-4)}` : 'Test Mode'}
-             </span>
+      <div className="w-full max-w-md mx-auto pt-6 px-4 pb-2">
+        <header className="flex justify-between items-center">
+          <div className="flex flex-col">
+            <h1 className="text-xl font-bold flex items-center gap-2 tracking-tight">
+              <TrendingUp className="text-blue-500" /> WLDguard
+            </h1>
+            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase mt-1">
+              Protect. Earn. Compound WLD.
+            </span>
+          </div>
+          {isVerified && (
             <button 
               onClick={handleDisconnect}
-              className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-800 px-3 py-1 rounded-full"
+              className="bg-slate-900 hover:bg-slate-800 p-2 rounded-full border border-slate-800 transition-colors"
             >
-              Disconnect
+              <LogOut size={16} className="text-slate-400" />
             </button>
-          </div>
-        )}
+          )}
+        </header>
       </div>
 
       <div className="w-full max-w-md w-full">
         
         {!isVerified && (
-          <div className="animate-in fade-in duration-500 flex flex-col items-center">
+          <div className="animate-in fade-in duration-500 flex flex-col items-center mt-10">
             
-            <div className="w-full">
-              <AlphaChart />
-            </div>
-            
-            <div className="text-center mb-6">
-              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+            <div className="text-center mb-10">
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
                 Protect. Earn.<br/>Compound WLD.
               </h1>
               <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
-                Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
+                Your intelligent assistant dedicated to compounding Worldcoin.
               </p>
-            </div>
-
-            <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
-              <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
-              <div className="flex justify-between items-center px-1">
-                <div className="flex-1 text-center">
-                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
-                  <p className="text-white font-mono font-bold text-sm">{globalStats.wld.toFixed(0)} WLD</p>
-                </div>
-                <div className="w-px h-6 bg-slate-800"></div>
-                <div className="flex-1 text-center">
-                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
-                  <p className="text-white font-mono font-bold text-sm">{globalStats.users}</p>
-                </div>
-                <div className="w-px h-6 bg-slate-800"></div>
-                <div className="flex-1 text-center">
-                  <p className="text-[10px] text-slate-400 mb-1 font-medium">WLD Target Yield</p>
-                  <p className="text-emerald-400 font-mono font-bold text-sm">12.88% APY</p>
-                </div>
-              </div>
             </div>
 
             <button 
               onClick={handleVerify}
               disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight flex justify-center items-center gap-2"
+              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
             >
               {isLoading ? 'Requesting Biometrics...' : 'Verify with World ID'}
             </button>
@@ -362,7 +354,7 @@ export default function Home() {
         )}
 
         {isVerified && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5 mt-6">
             
             <AlphaChart />
             
@@ -372,8 +364,8 @@ export default function Home() {
               {isFetchingBalances ? (
                 <div className="h-10 bg-slate-800 rounded animate-pulse w-48 mb-6"></div>
               ) : (
-                <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
-                  {balances.total.toFixed(6)} WLD
+                <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight flex items-baseline gap-2">
+                  {balances.total.toFixed(6)} <span className="text-lg text-slate-500">WLD</span>
                 </div>
               )}
 
@@ -382,13 +374,9 @@ export default function Home() {
                   <span className="flex items-center gap-2 text-slate-300">
                     <span className="w-2 h-2 rounded-full bg-blue-500"></span> Liquid Wallet
                   </span>
-                  <span className="font-mono">{balances.liquid.toFixed(6)}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="flex items-center gap-2 text-emerald-400 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
+                  <span className="font-mono text-slate-300">
+                     {walletAddress ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : ''}
                   </span>
-                  <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
                 </div>
               </div>
             </div>
