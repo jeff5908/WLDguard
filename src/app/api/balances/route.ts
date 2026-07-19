@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createPublicClient, http, formatUnits, parseAbi } from 'viem';
+import { worldchain } from 'viem/chains'; // 🚨 CRITICAL FIX: Import the World Chain config
 
 export const dynamic = 'force-dynamic';
 
@@ -12,9 +13,9 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🚨 FIX: We are safely back on the official World Chain RPC!
-    // Since this runs on Vercel's backend, the browser CORS firewall cannot block us.
+    // 🚨 Explicitly tell viem we are executing on World Chain so the RPC doesn't fail
     const publicClient = createPublicClient({
+      chain: worldchain,
       transport: http("https://rpc.worldchain.network")
     });
 
@@ -26,27 +27,19 @@ export async function GET(req: Request) {
       'function maxWithdraw(address owner) external view returns (uint256)'
     ]);
 
-    // Fetch Liquid WLD (With a fallback to 0 if the node drops the connection)
     const liquidWei = await publicClient.readContract({
       address: WLD_ADDRESS,
       abi: BALANCE_ABI,
       functionName: 'balanceOf',
       args: [address as `0x${string}`]
-    }).catch((err) => {
-      console.warn("Liquid balance fetch failed, falling back to 0", err);
-      return 0n;
-    });
+    }).catch(() => 0n);
 
-    // Fetch Morpho Vault WLD (With a fallback to 0)
     const vaultWei = await publicClient.readContract({
       address: MORPHO_WLD_VAULT,
       abi: BALANCE_ABI,
       functionName: 'maxWithdraw',
       args: [address as `0x${string}`]
-    }).catch((err) => {
-      console.warn("Vault balance fetch failed, falling back to 0", err);
-      return 0n;
-    });
+    }).catch(() => 0n);
 
     return NextResponse.json({
       liquid: Number(formatUnits(liquidWei as bigint, 18)),
@@ -55,6 +48,6 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error("Server Balance Fetch Error:", error.message);
-    return NextResponse.json({ error: error.message || 'Failed to fetch live balances' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch live balances' }, { status: 500 });
   }
 }
