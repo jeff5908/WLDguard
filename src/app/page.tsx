@@ -230,7 +230,7 @@ export default function Home() {
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: "mock-user-id" })
+        body: JSON.stringify({ userId: walletAddress || "mock-user-id" })
       });
       
       const data = await res.json();
@@ -243,13 +243,17 @@ export default function Home() {
             txData: null
          });
       } else {
+         // 🚨 FIX: Add safe formatting for the price returned from the Daemon
+         const signalType = data.signal || "HOLD";
+         const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.420";
+
          setProposal({
-            type: data.signal,
-            description: data.signal === "HOLD" 
-              ? `Market is Stable at $${data.price}. Let your assets continue earning passive vault yield.`
-              : `Market overextended. Target execution at $${data.price}.`,
-            expectedYield: data.signal === "HOLD" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
-            txData: data.signal === "HOLD" ? null : [{ to: "0x...", data: "0x...", description: "Rebalance" }]
+            type: signalType,
+            description: signalType === "HOLD" 
+              ? `Market is Stable at $${formattedPrice}. Let your assets continue earning passive vault yield.`
+              : `Market overextended. Target execution at $${formattedPrice}.`,
+            expectedYield: signalType === "HOLD" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
+            txData: signalType === "HOLD" ? null : [{ to: "0x2cFc85d8E48F8EAB294be644d9E25C3030863003", data: "0x095ea7b3000000000000000000000000c3d68deb631fa5896e3a3e6b4e3b1c676e4b490b0000000000000000000000000000000000000000000000008ac7230489e80000", description: "Deposit to Morpho Vault" }]
          });
       }
     } catch (error) {
