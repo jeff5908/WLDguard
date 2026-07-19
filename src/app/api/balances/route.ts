@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createPublicClient, http, formatUnits, parseAbi } from 'viem';
-import { worldchain } from 'viem/chains'; // 🚨 CRITICAL FIX: Import the World Chain config
+import { createPublicClient, http, formatUnits, parseAbi, fallback } from 'viem';
+import { worldchain } from 'viem/chains';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +13,15 @@ export async function GET(req: Request) {
   }
 
   try {
-    // 🚨 Explicitly tell viem we are executing on World Chain so the RPC doesn't fail
+    // 🚨 ULTIMATE FIX: We are using a Fallback array of 3 different enterprise RPCs.
+    // If the network blocks Vercel's IP on one, viem instantly routes to the next!
     const publicClient = createPublicClient({
       chain: worldchain,
-      transport: http("https://rpc.worldchain.network")
+      transport: fallback([
+        http("https://worldchain-mainnet.g.alchemy.com/public"),
+        http("https://worldchain.drpc.org"),
+        http("https://480.rpc.thirdweb.com")
+      ])
     });
 
     const WLD_ADDRESS = "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
@@ -27,19 +32,21 @@ export async function GET(req: Request) {
       'function maxWithdraw(address owner) external view returns (uint256)'
     ]);
 
+    // We intentionally removed the `.catch(() => 0n)` safety net!
+    // If the connection fails, we WANT it to crash so your phone shows 404.404.
     const liquidWei = await publicClient.readContract({
       address: WLD_ADDRESS,
       abi: BALANCE_ABI,
       functionName: 'balanceOf',
       args: [address as `0x${string}`]
-    }).catch(() => 0n);
+    });
 
     const vaultWei = await publicClient.readContract({
       address: MORPHO_WLD_VAULT,
       abi: BALANCE_ABI,
       functionName: 'maxWithdraw',
       args: [address as `0x${string}`]
-    }).catch(() => 0n);
+    });
 
     return NextResponse.json({
       liquid: Number(formatUnits(liquidWei as bigint, 18)),
@@ -48,6 +55,6 @@ export async function GET(req: Request) {
 
   } catch (error: any) {
     console.error("Server Balance Fetch Error:", error.message);
-    return NextResponse.json({ error: 'Failed to fetch live balances' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to fetch live balances' }, { status: 500 });
   }
 }
