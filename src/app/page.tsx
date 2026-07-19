@@ -142,7 +142,8 @@ export default function Home() {
 
         } catch (error) {
           console.error("Balance fetch failed", error);
-          setBalances({ liquid: 0, vault: 0, total: 0 });
+          // 🚨 DEBUG: If Alchemy drops the connection, show 404.404. If we see 0, we know the wallet is truly empty!
+          setBalances({ liquid: 0, vault: 0, total: 404.404040 });
         } finally {
           setIsFetchingBalances(false);
         }
@@ -166,7 +167,6 @@ export default function Home() {
         });
 
         if (result?.finalPayload?.status === 'success') {
-          // 🚨 THE BULLETPROOF FIX: We bypass the URL and extract the address directly from the SIWE payload!
           const userAddr = result.finalPayload.address || MiniKit.walletAddress;
           
           if (!userAddr) {
