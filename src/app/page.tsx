@@ -141,7 +141,6 @@ export default function Home() {
   }, [isVerified, userAddress]);
 
   const handleVerify = async () => {
-    // 🚨 Added the missing haptics right here!
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
     setLoginError("");
@@ -152,23 +151,28 @@ export default function Home() {
        return;
     }
 
-    let address = MiniKit.walletAddress;
-    let retries = 0;
-    
-    while (!address && retries < 15) { 
-       await new Promise(r => setTimeout(r, 300));
-       address = MiniKit.walletAddress;
-       retries++;
-    }
+    try {
+      // 🚨 THE FIX: We must explicitly ASK the user for permission to read their wallet address!
+      const authPayload = await MiniKit.commandsAsync.walletAuth({
+        nonce: `wldguard-auth-${Date.now()}`,
+        statement: 'Sign in to WLDguard to automate your compounding.',
+        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+      });
 
-    if (address) {
-        setUserAddress(address);
-        localStorage.setItem('wldguard_session', 'active');
-        setIsVerified(true);
-    } else {
-        // 🚨 Fix: We stop the auto-forwarding so you can actually read the error!
-        // We will not let you into the dashboard with a dummy address anymore.
-        setLoginError("App ID Mismatch: Hardware bridge timed out. Please check your App ID in MiniKitProvider.tsx.");
+      if (authPayload?.finalPayload?.status === 'error') {
+         setLoginError("Connection request declined or timed out.");
+      } else if (authPayload?.finalPayload?.status === 'success' && MiniKit.walletAddress) {
+         // Success! The user clicked "Connect" on the native World App prompt
+         setUserAddress(MiniKit.walletAddress);
+         localStorage.setItem('wldguard_session', 'active');
+         setIsVerified(true);
+      } else {
+         setLoginError("Failed to securely resolve wallet address from World App.");
+      }
+    } catch (error) {
+      console.error(error);
+      setLoginError("An unexpected error occurred during wallet authentication.");
     }
     
     setIsLoading(false);
@@ -308,7 +312,6 @@ export default function Home() {
           total: prev.total
         }));
       } else {
-        // Safe UI State Reset (NO ALERTS)
         setProposal({
            type: "ERROR",
            description: `Transaction Cancelled or Failed. Status: ${result?.finalPayload?.status || 'Unknown'}`,
@@ -346,8 +349,8 @@ export default function Home() {
             </svg>
             WLDguard
           </h1>
-          {/* THE CACHE BUSTER TEXT: Check for v1.1 on your phone screen! */}
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.1</span>
+          {/* THE CACHE BUSTER TEXT: v1.2 guarantees fresh code */}
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.2</span>
         </div>
         {isVerified && (
           <button 
@@ -395,7 +398,6 @@ export default function Home() {
               </div>
             </div>
             
-            {/* The beautiful UI Error Box */}
             {loginError && (
               <div className="w-full bg-red-900/40 border border-red-500/30 p-3 rounded-xl mb-4">
                 <p className="text-xs text-red-400 text-center font-medium leading-relaxed">{loginError}</p>
@@ -407,7 +409,7 @@ export default function Home() {
               disabled={isLoading}
               className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
             >
-              {isLoading ? 'Syncing Hardware...' : 'Verify with World ID'}
+              {isLoading ? 'Requesting Connection...' : 'Verify with World ID'}
             </button>
             <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
               Zero Gas Fees. 100% Non-Custodial.
