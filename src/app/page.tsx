@@ -164,7 +164,7 @@ export default function Home() {
         localStorage.setItem('wldguard_session', 'active');
         setIsVerified(true);
     } else {
-        // Developer Fallback Mode
+        // Developer Fallback Mode (NO ALERTS!)
         setLoginError("App ID Mismatch: The hardware bridge timed out. Falling back to Developer Mode for UI testing.");
         setUserAddress("0x0000000000000000000000000000000000000000"); // Safe dummy address
         localStorage.setItem('wldguard_session', 'active');
@@ -309,7 +309,7 @@ export default function Home() {
           total: prev.total
         }));
       } else {
-        // Replaces the illegal alert() with a clean UI state reset
+        // Safe UI State Reset (NO ALERTS)
         setProposal({
            type: "ERROR",
            description: `Transaction Cancelled or Failed. Status: ${result?.finalPayload?.status || 'Unknown'}`,
@@ -347,7 +347,8 @@ export default function Home() {
             </svg>
             WLDguard
           </h1>
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD.</span>
+          {/* THE CACHE BUSTER TEXT: Check for v1.1 on your phone screen! */}
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.1</span>
         </div>
         {isVerified && (
           <button 
@@ -395,7 +396,7 @@ export default function Home() {
               </div>
             </div>
             
-            {/* The beautiful UI Error Box instead of an alert */}
+            {/* The beautiful UI Error Box */}
             {loginError && (
               <div className="w-full bg-red-900/40 border border-red-500/30 p-3 rounded-xl mb-4">
                 <p className="text-xs text-red-400 text-center font-medium leading-relaxed">{loginError}</p>
