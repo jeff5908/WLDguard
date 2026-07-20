@@ -122,7 +122,31 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-      // 🚨 THE FIX: Strip out strict time validation and use a pure cryptographic nonce.
+          const res = await fetch(`/api/balances?address=${userAddress}`);
+          const data = await res.json();
+          setBalances({
+            liquid: data.liquid || 0,
+            vault: data.vault || 0,
+            total: (data.liquid || 0) + (data.vault || 0)
+          });
+        } catch (error) {
+          console.error("Balance fetch failed", error);
+          setBalances({ liquid: 0, vault: 0, total: 0 });
+        } finally {
+          setIsFetchingBalances(false);
+        }
+      };
+      fetchBalances();
+    }
+  }, [isVerified, userAddress]);
+
+  const handleVerify = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+    setIsLoading(true);
+    setLoginError("");
+
+    try {
+      // 🚨 THE FIX: Perfectly scoped try/catch block with simplified nonce for SIWE
       const authPayload = await MiniKit.commandsAsync.walletAuth({
         nonce: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
         statement: 'Sign in to WLDguard.',
@@ -131,7 +155,6 @@ export default function Home() {
       if (authPayload?.finalPayload?.status === 'error') {
          setLoginError("Connection request declined or timed out.");
       } else if (authPayload?.finalPayload?.status === 'success' && MiniKit.walletAddress) {
-         // Success! The user clicked "Connect" on the native World App prompt
          setUserAddress(MiniKit.walletAddress);
          localStorage.setItem('wldguard_session', 'active');
          setIsVerified(true);
@@ -317,8 +340,8 @@ export default function Home() {
             </svg>
             WLDguard
           </h1>
-          {/* THE CACHE BUSTER TEXT: v1.2 guarantees fresh code */}
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.2</span>
+          {/* THE CACHE BUSTER TEXT: v1.3 guarantees fresh code */}
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.3</span>
         </div>
         {isVerified && (
           <button 
