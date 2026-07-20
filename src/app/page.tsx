@@ -141,6 +141,8 @@ export default function Home() {
   }, [isVerified, userAddress]);
 
   const handleVerify = async () => {
+    // 🚨 Added the missing haptics right here!
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
     setLoginError("");
     
@@ -164,12 +166,9 @@ export default function Home() {
         localStorage.setItem('wldguard_session', 'active');
         setIsVerified(true);
     } else {
-        // Developer Fallback Mode (NO ALERTS!)
-        setLoginError("App ID Mismatch: The hardware bridge timed out. Falling back to Developer Mode for UI testing.");
-        setUserAddress("0x0000000000000000000000000000000000000000"); // Safe dummy address
-        localStorage.setItem('wldguard_session', 'active');
-        // Delay verification slightly so user sees the warning before UI shifts
-        setTimeout(() => setIsVerified(true), 2500);
+        // 🚨 Fix: We stop the auto-forwarding so you can actually read the error!
+        // We will not let you into the dashboard with a dummy address anymore.
+        setLoginError("App ID Mismatch: Hardware bridge timed out. Please check your App ID in MiniKitProvider.tsx.");
     }
     
     setIsLoading(false);
