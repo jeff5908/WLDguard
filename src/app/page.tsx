@@ -104,7 +104,7 @@ export default function Home() {
     }
   }, []);
 
-  // Restore the Live Viem Balance Fetching!
+  // Restore the Live Viem Balance Fetching
   useEffect(() => {
     if (isVerified) {
       const fetchBalances = async () => {
@@ -113,8 +113,8 @@ export default function Home() {
           const userWallet = MiniKit.walletAddress;
           
           if (!userWallet) {
-            // Safe fallback if testing on a desktop browser without MiniKit
-            setBalances({ liquid: 75.07, vault: 20.00, total: 95.07 });
+            // Updated fallback: No fake 20 WLD in vault!
+            setBalances({ liquid: 75.07, vault: 0.00, total: 75.07 });
             return;
           }
 
@@ -188,17 +188,20 @@ export default function Home() {
          let signalType = data.signal || "HOLD";
          const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.420";
 
+         // THE IDLE CAPITAL OVERRIDE
          if (signalType === "HOLD" && balances.liquid > 0) {
              signalType = "DEPOSIT_IDLE";
          }
 
          let microTxData = null;
          
-         if (signalType !== "HOLD" && userWallet !== "0x0000000000000000000000000000000000000000") {
-             // 🚨 THE FIX: ALL LOWERCASE HEX ADDRESSES TO BYPASS VIEM CHECKSUM ERRORS
+         if (signalType !== "HOLD") {
+             // 🚨 ALL LOWERCASE HEX ADDRESSES TO BYPASS VIEM CHECKSUM ERRORS
              const WLD_ADDRESS = "0x2cfc85d8e48f8eab294be644d9e25c3030863003";
              const MORPHO_WLD_VAULT = "0xc3d68deb631fa5896e3a3e6b4e3b1c676e4b490b";
              
+             // Guarantee receiver address is a valid hex, even if MiniKit is briefly delayed
+             const receiverAddress = MiniKit.walletAddress || "0x0000000000000000000000000000000000000000";
              const safeAmountWei = parseUnits("0.5", 18);
 
              const approveCalldata = encodeFunctionData({
@@ -210,7 +213,7 @@ export default function Home() {
              const depositCalldata = encodeFunctionData({
                  abi: [{ type: 'function', name: 'deposit', inputs: [{ name: 'assets', type: 'uint256' }, { name: 'receiver', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' }],
                  functionName: 'deposit',
-                 args: [safeAmountWei, userWallet as `0x${string}`]
+                 args: [safeAmountWei, receiverAddress as `0x${string}`]
              });
 
              microTxData = [
