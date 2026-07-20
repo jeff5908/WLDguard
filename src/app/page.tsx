@@ -154,10 +154,28 @@ export default function Home() {
 
       if (authPayload?.finalPayload?.status === 'error') {
          setLoginError("Connection request declined or timed out.");
-      } else if (authPayload?.finalPayload?.status === 'success' && MiniKit.walletAddress) {
-         setUserAddress(MiniKit.walletAddress);
-         localStorage.setItem('wldguard_session', 'active');
-         setIsVerified(true);
+      } else if (authPayload?.finalPayload?.status === 'success') {
+         
+         let fetchedAddress = MiniKit.walletAddress;
+         
+         // 🚨 THE HYDRATION LOOP: Wait up to 2 seconds for the SDK to inject the address
+         if (!fetchedAddress) {
+            for (let i = 0; i < 20; i++) {
+               await new Promise(r => setTimeout(r, 100));
+               if (MiniKit.walletAddress) {
+                  fetchedAddress = MiniKit.walletAddress;
+                  break;
+               }
+            }
+         }
+
+         if (fetchedAddress) {
+            setUserAddress(fetchedAddress);
+            localStorage.setItem('wldguard_session', 'active');
+            setIsVerified(true);
+         } else {
+            setLoginError("Hardware signature accepted, but address sync timed out. Try again.");
+         }
       } else {
          setLoginError("Failed to securely resolve wallet address from World App.");
       }
