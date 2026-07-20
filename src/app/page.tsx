@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
 import { encodeFunctionData, parseUnits } from 'viem';
 
+// --- Interactive, Zero-Dependency Chart Component ---
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
 
@@ -146,21 +147,26 @@ export default function Home() {
     setLoginError("");
 
     try {
-      // 🚨 THE FIX: Perfectly scoped try/catch block with simplified nonce for SIWE
+      // 🚨 THE CACHE BUSTER TRICK: Changing this statement forces World App to show the native UI prompt again!
       const authPayload = await MiniKit.commandsAsync.walletAuth({
         nonce: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
-        statement: 'Sign in to WLDguard.',
+        requestId: '0',
+        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+        statement: 'Connect to WLDguard v1.4 to verify your wallet.',
       });
 
       if (authPayload?.finalPayload?.status === 'error') {
          setLoginError("Connection request declined or timed out.");
       } else if (authPayload?.finalPayload?.status === 'success') {
          
-         let fetchedAddress = MiniKit.walletAddress;
+         // Extract address safely, falling back to MiniKit if available
+         // @ts-ignore - Safely parsing standard SIWE payload structures
+         let fetchedAddress = MiniKit.walletAddress || authPayload?.finalPayload?.address;
          
-         // 🚨 THE HYDRATION LOOP: Wait up to 2 seconds for the SDK to inject the address
+         // Hydration Loop: Wait up to 3 seconds for the SDK to wake up and inject the address
          if (!fetchedAddress) {
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 30; i++) {
                await new Promise(r => setTimeout(r, 100));
                if (MiniKit.walletAddress) {
                   fetchedAddress = MiniKit.walletAddress;
@@ -174,7 +180,7 @@ export default function Home() {
             localStorage.setItem('wldguard_session', 'active');
             setIsVerified(true);
          } else {
-            setLoginError("Hardware signature accepted, but address sync timed out. Try again.");
+            setLoginError("Hardware accepted, but address sync timed out. Force close app and try again.");
          }
       } else {
          setLoginError("Failed to securely resolve wallet address from World App.");
@@ -315,6 +321,7 @@ export default function Home() {
         setSuccessMsg("Success! Hardware accepted and executed the payload.");
         setProposal(null);
         
+        // Optimistically update the UI so it feels instant
         setBalances(prev => ({
           liquid: prev.liquid - 0.5,
           vault: prev.vault + 0.5,
@@ -358,8 +365,8 @@ export default function Home() {
             </svg>
             WLDguard
           </h1>
-          {/* THE CACHE BUSTER TEXT: v1.3 guarantees fresh code */}
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.3</span>
+          {/* 🚨 v1.4 guarantees cache bust! */}
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.4</span>
         </div>
         {isVerified && (
           <button 
