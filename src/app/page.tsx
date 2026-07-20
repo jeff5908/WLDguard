@@ -97,35 +97,34 @@ export default function Home() {
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
   const [userAddress, setUserAddress] = useState<string | null>(null);
 
-  // Amnesia Check & Hydration
+  // 1. Safe Hydration & Silent Login
   useEffect(() => {
     setIsMounted(true);
     if (localStorage.getItem('wldguard_session') === 'active') {
-      setIsVerified(true);
+      // Quietly wait for the hardware bridge to inject the address
+      let retries = 0;
+      const checkAddress = setInterval(() => {
+        if (MiniKit.walletAddress) {
+          setUserAddress(MiniKit.walletAddress);
+          setIsVerified(true);
+          clearInterval(checkAddress);
+        }
+        retries++;
+        if (retries > 20) { // Give up after 10 seconds of background polling
+          clearInterval(checkAddress);
+          localStorage.removeItem('wldguard_session'); // Force manual login
+        }
+      }, 500);
     }
   }, []);
 
-  // True Live Balance Fetching
+  // 2. Fetch True Balances ONLY when we have the Secure Address
   useEffect(() => {
-    if (isVerified) {
+    if (isVerified && userAddress) {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // Wait for World App to provide the real hardware address
-          const address = MiniKit.walletAddress;
-          
-          if (!address) {
-            console.warn("Wallet address not available yet.");
-            // NO FAKE NUMBERS. Real fallback to 0 until connected.
-            setBalances({ liquid: 0, vault: 0, total: 0 });
-            setIsFetchingBalances(false);
-            return;
-          }
-
-          setUserAddress(address);
-
-          // Fetch real on-chain balance using the true address
-          const res = await fetch(`/api/balances?address=${address}&timestamp=${Date.now()}`);
+          const res = await fetch(`/api/balances?address=${userAddress}&timestamp=${Date.now()}`);
           const data = await res.json();
           
           setBalances({
@@ -141,33 +140,46 @@ export default function Home() {
       };
       fetchBalances();
     }
-  }, [isVerified]);
+  }, [isVerified, userAddress]);
 
+  // 3. The New Bulletproof Login Sequence
   const handleVerify = async () => {
     setIsLoading(true);
     
-    // Safety check: ensure we are inside the actual World App
     if (!MiniKit.isInstalled()) {
        alert("Error: You must open this inside the World App!");
        setIsLoading(false);
        return;
     }
 
-    // Force the UI to wait a second for MiniKit to fully initialize the hardware bridge
-    setTimeout(() => {
-      localStorage.setItem('wldguard_session', 'active');
-      setIsVerified(true);
-      setIsLoading(false);
-    }, 1000);
+    // Actively wait for the physical hardware bridge to hand over the address
+    let address = MiniKit.walletAddress;
+    let retries = 0;
+    
+    while (!address && retries < 15) { // Wait up to 4.5 seconds
+       await new Promise(r => setTimeout(r, 300));
+       address = MiniKit.walletAddress;
+       retries++;
+    }
+
+    if (address) {
+        setUserAddress(address);
+        localStorage.setItem('wldguard_session', 'active');
+        setIsVerified(true);
+    } else {
+        alert("Hardware bridge timeout. Please close WLDguard and reopen it.");
+    }
+    
+    setIsLoading(false);
   };
 
   const handleDisconnect = () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     localStorage.removeItem('wldguard_session');
     setIsVerified(false);
+    setUserAddress(null);
     setProposal(null);
     setSuccessMsg("");
-    setUserAddress(null);
   };
 
   const handleOptimize = async () => {
@@ -176,11 +188,11 @@ export default function Home() {
     setProposal(null);
     setSuccessMsg("");
 
-    // STRICT CHECK: Do not allow trading if the hardware wallet is missing!
+    // The Ultimate Safety Net: Do not build transaction if wallet is missing
     if (!userAddress) {
        setProposal({
           type: "ERROR",
-          description: "Hardware wallet disconnected. Please refresh the app to sync with World ID.",
+          description: "Hardware wallet disconnected. Please disconnect and verify again.",
           expectedYield: "Sync Error",
           txData: null
        });
@@ -208,7 +220,7 @@ export default function Home() {
       if (!res.ok) {
          setProposal({
             type: "ERROR",
-            description: `Server Error: ${data.error || 'Check Vercel Logs'} (Code: ${res.status})`,
+            description: `Server Error: ${data.error || 'Check Vercel Logs'}`,
             expectedYield: "Network Error",
             txData: null
          });
@@ -224,7 +236,7 @@ export default function Home() {
          let microTxData = null;
          
          if (signalType !== "HOLD") {
-             // LOWERCASE HEX ADDRESSES
+             // LOWERCASE HEX ADDRESSES TO PASS CHECKSUM
              const WLD_ADDRESS = "0x2cfc85d8e48f8eab294be644d9e25c3030863003";
              const MORPHO_WLD_VAULT = "0xc3d68deb631fa5896e3a3e6b4e3b1c676e4b490b";
              
@@ -239,7 +251,6 @@ export default function Home() {
              const depositCalldata = encodeFunctionData({
                  abi: [{ type: 'function', name: 'deposit', inputs: [{ name: 'assets', type: 'uint256' }, { name: 'receiver', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' }],
                  functionName: 'deposit',
-                 // 🚨 WE NOW USE YOUR REAL SECURE ADDRESS, NOT A DUMMY 0x000
                  args: [safeAmountWei, userAddress as `0x${string}`]
              });
 
@@ -296,7 +307,7 @@ export default function Home() {
         setSuccessMsg("Success! Hardware accepted and executed the payload.");
         setProposal(null);
         
-        // Optimistically update the UI to reflect the new balances
+        // Optimistically update the UI
         setBalances(prev => ({
           liquid: prev.liquid - 0.5,
           vault: prev.vault + 0.5,
@@ -383,7 +394,7 @@ export default function Home() {
               disabled={isLoading}
               className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
             >
-              {isLoading ? 'Verifying...' : 'Verify with World ID'}
+              {isLoading ? 'Syncing Hardware...' : 'Verify with World ID'}
             </button>
             <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
               Zero Gas Fees. 100% Non-Custodial.
@@ -414,7 +425,7 @@ export default function Home() {
                   <span className="font-mono">{balances.liquid.toFixed(6)}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm">
-                  <span className="flex items-center gap-2 text-emerald-400 font-medium">
+                  <span className="flex justify-between items-center gap-2 text-emerald-400 font-medium">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
                   </span>
                   <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
