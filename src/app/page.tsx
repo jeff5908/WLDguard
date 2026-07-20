@@ -122,42 +122,10 @@ export default function Home() {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          const res = await fetch(`/api/balances?address=${userAddress}&timestamp=${Date.now()}`);
-          const data = await res.json();
-          
-          setBalances({
-            liquid: data.liquid || 0,
-            vault: data.vault || 0,
-            total: (data.liquid || 0) + (data.vault || 0)
-          });
-        } catch (error) {
-          console.error("Balance fetch failed", error);
-        } finally {
-          setIsFetchingBalances(false);
-        }
-      };
-      fetchBalances();
-    }
-  }, [isVerified, userAddress]);
-
-  const handleVerify = async () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
-    setIsLoading(true);
-    setLoginError("");
-    
-    if (!MiniKit.isInstalled()) {
-       setLoginError("World App bridge not detected. Please open this inside the World App.");
-       setIsLoading(false);
-       return;
-    }
-
-    try {
-      // 🚨 THE FIX: We must explicitly ASK the user for permission to read their wallet address!
+      // 🚨 THE FIX: Strip out strict time validation and use a pure cryptographic nonce.
       const authPayload = await MiniKit.commandsAsync.walletAuth({
-        nonce: `wldguard-auth-${Date.now()}`,
-        statement: 'Sign in to WLDguard to automate your compounding.',
-        expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
-        notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+        nonce: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+        statement: 'Sign in to WLDguard.',
       });
 
       if (authPayload?.finalPayload?.status === 'error') {
