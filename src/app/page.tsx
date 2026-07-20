@@ -95,8 +95,9 @@ export default function Home() {
   const [successMsg, setSuccessMsg] = useState("");
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
+  const [userAddress, setUserAddress] = useState<string | null>(null);
 
-  // Amnesia Check
+  // Amnesia Check & Hydration
   useEffect(() => {
     setIsMounted(true);
     if (localStorage.getItem('wldguard_session') === 'active') {
@@ -104,21 +105,27 @@ export default function Home() {
     }
   }, []);
 
-  // Restore the Live Viem Balance Fetching
+  // True Live Balance Fetching
   useEffect(() => {
     if (isVerified) {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          const userWallet = MiniKit.walletAddress;
+          // Wait for World App to provide the real hardware address
+          const address = MiniKit.walletAddress;
           
-          if (!userWallet) {
-            // Updated fallback: No fake 20 WLD in vault!
-            setBalances({ liquid: 75.07, vault: 0.00, total: 75.07 });
+          if (!address) {
+            console.warn("Wallet address not available yet.");
+            // NO FAKE NUMBERS. Real fallback to 0 until connected.
+            setBalances({ liquid: 0, vault: 0, total: 0 });
+            setIsFetchingBalances(false);
             return;
           }
 
-          const res = await fetch(`/api/balances?address=${userWallet}&timestamp=${Date.now()}`);
+          setUserAddress(address);
+
+          // Fetch real on-chain balance using the true address
+          const res = await fetch(`/api/balances?address=${address}&timestamp=${Date.now()}`);
           const data = await res.json();
           
           setBalances({
@@ -138,6 +145,15 @@ export default function Home() {
 
   const handleVerify = async () => {
     setIsLoading(true);
+    
+    // Safety check: ensure we are inside the actual World App
+    if (!MiniKit.isInstalled()) {
+       alert("Error: You must open this inside the World App!");
+       setIsLoading(false);
+       return;
+    }
+
+    // Force the UI to wait a second for MiniKit to fully initialize the hardware bridge
     setTimeout(() => {
       localStorage.setItem('wldguard_session', 'active');
       setIsVerified(true);
@@ -151,6 +167,7 @@ export default function Home() {
     setIsVerified(false);
     setProposal(null);
     setSuccessMsg("");
+    setUserAddress(null);
   };
 
   const handleOptimize = async () => {
@@ -159,22 +176,33 @@ export default function Home() {
     setProposal(null);
     setSuccessMsg("");
 
+    // STRICT CHECK: Do not allow trading if the hardware wallet is missing!
+    if (!userAddress) {
+       setProposal({
+          type: "ERROR",
+          description: "Hardware wallet disconnected. Please refresh the app to sync with World ID.",
+          expectedYield: "Sync Error",
+          txData: null
+       });
+       setIsLoading(false);
+       return;
+    }
+
     try {
-      const userWallet = MiniKit.walletAddress || "0x0000000000000000000000000000000000000000";
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache'
         },
-        body: JSON.stringify({ userId: userWallet })
+        body: JSON.stringify({ userId: userAddress })
       });
       
       let data;
       try {
         data = await res.json();
       } catch (e) {
-        data = { error: "Failed to parse server response. Likely a fatal build crash." };
+        data = { error: "Failed to parse server response." };
       }
       
       if (!res.ok) {
@@ -186,7 +214,7 @@ export default function Home() {
          });
       } else {
          let signalType = data.signal || "HOLD";
-         const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.420";
+         const formattedPrice = data.price ? parseFloat(data.price).toFixed(3) : "0.000";
 
          // THE IDLE CAPITAL OVERRIDE
          if (signalType === "HOLD" && balances.liquid > 0) {
@@ -196,12 +224,10 @@ export default function Home() {
          let microTxData = null;
          
          if (signalType !== "HOLD") {
-             // 🚨 ALL LOWERCASE HEX ADDRESSES TO BYPASS VIEM CHECKSUM ERRORS
+             // LOWERCASE HEX ADDRESSES
              const WLD_ADDRESS = "0x2cfc85d8e48f8eab294be644d9e25c3030863003";
              const MORPHO_WLD_VAULT = "0xc3d68deb631fa5896e3a3e6b4e3b1c676e4b490b";
              
-             // Guarantee receiver address is a valid hex, even if MiniKit is briefly delayed
-             const receiverAddress = MiniKit.walletAddress || "0x0000000000000000000000000000000000000000";
              const safeAmountWei = parseUnits("0.5", 18);
 
              const approveCalldata = encodeFunctionData({
@@ -213,7 +239,8 @@ export default function Home() {
              const depositCalldata = encodeFunctionData({
                  abi: [{ type: 'function', name: 'deposit', inputs: [{ name: 'assets', type: 'uint256' }, { name: 'receiver', type: 'address' }], outputs: [{ type: 'uint256' }], stateMutability: 'nonpayable' }],
                  functionName: 'deposit',
-                 args: [safeAmountWei, receiverAddress as `0x${string}`]
+                 // 🚨 WE NOW USE YOUR REAL SECURE ADDRESS, NOT A DUMMY 0x000
+                 args: [safeAmountWei, userAddress as `0x${string}`]
              });
 
              microTxData = [
@@ -269,14 +296,18 @@ export default function Home() {
         setSuccessMsg("Success! Hardware accepted and executed the payload.");
         setProposal(null);
         
+        // Optimistically update the UI to reflect the new balances
         setBalances(prev => ({
           liquid: prev.liquid - 0.5,
           vault: prev.vault + 0.5,
           total: prev.total
         }));
+      } else {
+        alert(`Transaction Failed or Cancelled. Status: ${result?.finalPayload?.status || 'Unknown'}`);
       }
     } catch (error) {
       console.error("Execution error:", error);
+      alert("Error sending transaction to hardware wallet.");
     }
   };
 
