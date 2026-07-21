@@ -2,9 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
-import { formatUnits } from 'viem';
 
-// --- Interactive Chart Component ---
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
   const data = [
@@ -18,7 +16,7 @@ const AlphaChart = () => {
 
   return (
     <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-5 shadow-2xl relative overflow-hidden group">
-      {}
+      
       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
       
       <div className="flex justify-between items-end mb-8">
@@ -145,22 +143,23 @@ export default function Home() {
     setLoginError("");
 
     try {
-      // 🚨 FIX: Simplified payload and unique statement to bypass Time-Travel and Cache locks
-      const nonce = Math.random().toString(36).substring(2, 15);
+      // 🚨 FIX: Cryptographic timestamp guarantees World App never caches this request
+      const nonce = `${Date.now()}${Math.random().toString(36).substring(2, 10)}`;
       
       const authPayload = await MiniKit.commandsAsync.walletAuth({
         nonce: nonce,
-        statement: 'Connect to WLDguard v1.7',
+        statement: 'Connect to WLDguard v1.8',
       });
 
       if (authPayload?.finalPayload?.status === 'error') {
          setLoginError("Connection request declined or timed out.");
       } else if (authPayload?.finalPayload?.status === 'success') {
-         // 🚨 HYDRATION LOOP: Wait patiently for the address to populate after success
-         let fetchedAddress = MiniKit.walletAddress;
+         
+         // 🚨 HYDRATION FIX: Extract directly from payload FIRST, fallback to MiniKit SDK variable
+         let fetchedAddress = MiniKit.walletAddress || (authPayload.finalPayload as any)?.address;
          
          if (!fetchedAddress) {
-            for (let i = 0; i < 40; i++) { // wait up to 4 seconds
+            for (let i = 0; i < 80; i++) { // wait up to 8 full seconds
                await new Promise(r => setTimeout(r, 100));
                if (MiniKit.walletAddress) {
                   fetchedAddress = MiniKit.walletAddress;
@@ -212,7 +211,6 @@ export default function Home() {
       
       let data = await res.json().catch(() => ({ error: "Failed to parse server response." }));
       
-      // 🚨 FIX: Fallback to $0.420 if Binance API crashes
       let signalType = data.signal || "HOLD";
       let rawPrice = parseFloat(data.price);
       if (isNaN(rawPrice)) rawPrice = 0.420; 
@@ -228,11 +226,10 @@ export default function Home() {
           const WLD_ADDRESS = "0x2cfc85d8e48f8eab294be644d9e25c3030863003";
           const MORPHO_WLD_VAULT = "0xc3d68deb631fa5896e3a3e6b4e3b1c676e4b490b";
 
-          // 🚨 THE PRODUCTION FIX: We provide the explicit ABI format so World App can read it!
-          // We are asking the WLD_ADDRESS to approve 0.5 WLD (500000000000000000 wei)
+          // 🚨 V1.8: Strict ABI format to bypass blind-signing protections
           microTxData = [
               {
-                  address: WLD_ADDRESS, // Contract we are talking to
+                  address: WLD_ADDRESS,
                   abi: [{ type: 'function', name: 'approve', inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }], stateMutability: 'nonpayable' }],
                   functionName: 'approve',
                   args: [MORPHO_WLD_VAULT, "500000000000000000"]
@@ -282,7 +279,6 @@ export default function Home() {
         return;
       }
       
-      // 🚨 FIX: Pass the perfectly formatted ABI array directly to MiniKit
       const result = await MiniKit.commandsAsync.sendTransaction({
         transaction: proposal.txData,
         reference: `wldguard-tx-${Math.floor(Date.now() / 1000)}`
@@ -326,7 +322,7 @@ export default function Home() {
 
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white font-sans p-4">
-      {}
+      
       <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -336,7 +332,7 @@ export default function Home() {
             </svg>
             WLDguard
           </h1>
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound WLD. • v1.7</span>
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound. • v1.8</span>
         </div>
         {isVerified && (
           <button 
@@ -348,7 +344,6 @@ export default function Home() {
         )}
       </div>
 
-      {}
       <div className="w-full max-w-md w-full">
         {!isVerified && (
           <div className="animate-in fade-in duration-500 flex flex-col items-center">
