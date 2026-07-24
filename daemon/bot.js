@@ -6,7 +6,6 @@ async function sendTelegramAlert(message) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     
-    // If you haven't set up the keys yet, the bot just skips this silently
     if (!token || !chatId) return;
 
     try {
@@ -17,7 +16,7 @@ async function sendTelegramAlert(message) {
             body: JSON.stringify({ 
                 chat_id: chatId, 
                 text: message,
-                parse_mode: 'HTML' // Allows us to use bold text in the alert
+                parse_mode: 'HTML'
             })
         });
     } catch (error) {
@@ -143,10 +142,16 @@ async function runMarketAnalysis() {
         alertMessage = `🚨 <b>WLDguard Alert</b>\n\nMarket is <b>OVERSOLD</b> at $${livePrice.toFixed(3)}!\n\nOpen World App to buy the WLD dip with your parked USDC.`;
         console.log(`🚨 [SIGNAL] WLD is OVERSOLD! Preparing Broadcast...`);
     } else {
-        console.log(`🛡️ Market is Stable. No trade required.`);
+        console.log(`🛡️ Market is Stable. Smart Ping complete. Sleeping database to save compute.`);
     }
 
-    // --- Resilient Database Connection ---
+    // 🚨 THE SMART PING FIX: If the market is stable, exit the function NOW.
+    // This entirely prevents the bot from touching the Neon Database and burning compute hours.
+    if (action === 'HOLD') {
+        return; 
+    }
+
+    // --- Resilient Database Connection (Only runs on BUY or TRIM) ---
     let retries = 3;
     while (retries > 0) {
         try {
@@ -168,7 +173,6 @@ async function runMarketAnalysis() {
                 }
                 console.log(`✅ Success! Database updated.`);
                 
-                // 🚨 If the AI generated an alert, send the push notification to your phone!
                 if (alertMessage) {
                     await sendTelegramAlert(alertMessage);
                     console.log(`📱 Push notification sent to Telegram.`);
@@ -191,4 +195,5 @@ console.log("🚀 Starting WLDguard 24/7 Quant Engine...");
 console.log("=============================================");
 
 runMarketAnalysis();
+// Bot runs every 5 minutes (300,000 milliseconds) for high-precision market monitoring
 setInterval(runMarketAnalysis, 300000);
