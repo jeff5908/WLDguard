@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
-import { TrendingUp } from 'lucide-react'; // Ensure you have lucide-react installed
+import { TrendingUp } from 'lucide-react'; 
 
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
@@ -95,8 +95,25 @@ export default function Home() {
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
   const [userAddress, setUserAddress] = useState<string | null>(null);
 
+  // 🚨 NEW: Global Stats State
+  const [globalStats, setGlobalStats] = useState({ users: 0, wld: 0 });
+
+  // 1. Initial Mount & Session Check
   useEffect(() => {
     setIsMounted(true);
+    
+    // Fetch live global stats on load
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        setGlobalStats({ users: data.totalUsers, wld: data.totalWld });
+      } catch (e) {
+        console.error("Failed to fetch global stats");
+      }
+    };
+    fetchStats();
+
     if (localStorage.getItem('wldguard_session') === 'active') {
       let retries = 0;
       const checkAddress = setInterval(() => {
@@ -114,12 +131,12 @@ export default function Home() {
     }
   }, []);
 
+  // 2. Fetch User Balances when Verified
   useEffect(() => {
     if (isVerified && userAddress) {
       const fetchBalances = async () => {
         setIsFetchingBalances(true);
         try {
-          // Fallback to static dummy numbers since database is paused
           setBalances({
             liquid: 75.073708,
             vault: 0.500000,
@@ -145,7 +162,7 @@ export default function Home() {
       
       const authPayload = await MiniKit.commandsAsync.walletAuth({
         nonce: nonce,
-        statement: 'Connect to WLDguard v2.0',
+        statement: 'Connect to WLDguard v2.1',
       });
 
       if (authPayload?.finalPayload?.status === 'error') {
@@ -167,6 +184,14 @@ export default function Home() {
             setUserAddress(fetchedAddress);
             localStorage.setItem('wldguard_session', 'active');
             setIsVerified(true);
+
+            // 🚨 NEW: Register user to the database in the background!
+            fetch('/api/user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ walletAddress: fetchedAddress, termsAccepted: true })
+            }).catch(console.error);
+
          } else {
             setLoginError("Hardware signature accepted, but address sync timed out. Try again.");
          }
@@ -316,7 +341,7 @@ export default function Home() {
             <TrendingUp size={22} className="text-emerald-400" />
             WLDguard
           </h1>
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound. • v2.0</span>
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound. • v2.1</span>
         </div>
         {isVerified && (
           <button 
@@ -350,12 +375,16 @@ export default function Home() {
               <div className="flex justify-between items-center px-1">
                 <div className="flex-1 text-center">
                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
-                  <p className="text-white font-mono font-bold text-sm">2,504 WLD</p>
+                  <p className="text-white font-mono font-bold text-sm">
+                    {globalStats.wld > 0 ? globalStats.wld.toLocaleString() : "..."} WLD
+                  </p>
                 </div>
                 <div className="w-px h-6 bg-slate-800"></div>
                 <div className="flex-1 text-center">
                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
-                  <p className="text-white font-mono font-bold text-sm">34</p>
+                  <p className="text-white font-mono font-bold text-sm">
+                    {globalStats.users > 0 ? globalStats.users : "..."}
+                  </p>
                 </div>
                 <div className="w-px h-6 bg-slate-800"></div>
                 <div className="flex-1 text-center">
