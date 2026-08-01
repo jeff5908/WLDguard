@@ -155,6 +155,21 @@ async function runMarketAnalysis() {
     let retries = 3;
     while (retries > 0) {
         try {
+            // 🚨 NEW: The 12-Hour Trade Cooldown Logic
+            const lastProposal = await prisma.proposal.findFirst({
+                orderBy: { createdAt: 'desc' }
+            });
+
+            if (lastProposal) {
+                const timeSinceLastSignalMs = Date.now() - new Date(lastProposal.createdAt).getTime();
+                const hoursSinceLast = timeSinceLastSignalMs / (1000 * 60 * 60);
+                
+                if (hoursSinceLast < 12) {
+                    console.log(`⏳ Trade Cooldown Active. Last signal was ${hoursSinceLast.toFixed(1)} hours ago. Protecting users from signal spam.`);
+                    return; // Exit safely without broadcasting
+                }
+            }
+
             const users = await prisma.user.findMany();
             
             if (users.length > 0) {
