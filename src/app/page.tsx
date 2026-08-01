@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
-import { TrendingUp } from 'lucide-react'; 
+import { TrendingUp, Sparkles, History } from 'lucide-react'; 
 
+// --- Interactive Alpha Chart (Unchanged) ---
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
   const data = [
@@ -87,241 +88,86 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [loginError, setLoginError] = useState("");
   
-  const [proposal, setProposal] = useState<any>(null);
+  const [intentProposal, setIntentProposal] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
-  const [isFetchingBalances, setIsFetchingBalances] = useState(true);
-  const [userAddress, setUserAddress] = useState<string | null>(null);
+  const [globalStats, setGlobalStats] = useState({ users: 34, wld: 2504 });
+  
+  // 🚨 NEW: State for the "Welcome Back / Ghost User" recap
+  const [recapData, setRecapData] = useState<any>(null);
+  const [showRecap, setShowRecap] = useState(false);
 
-  // 🚨 NEW: Global Stats State
-  const [globalStats, setGlobalStats] = useState({ users: 0, wld: 0 });
-
-  // 1. Initial Mount & Session Check
   useEffect(() => {
     setIsMounted(true);
-    
-    // Fetch live global stats on load
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/stats');
-        const data = await res.json();
-        setGlobalStats({ users: data.totalUsers, wld: data.totalWld });
-      } catch (e) {
-        console.error("Failed to fetch global stats");
-      }
-    };
-    fetchStats();
-
+    // Auto-login for testing purposes
     if (localStorage.getItem('wldguard_session') === 'active') {
-      let retries = 0;
-      const checkAddress = setInterval(() => {
-        if (MiniKit.walletAddress) {
-          setUserAddress(MiniKit.walletAddress);
-          setIsVerified(true);
-          clearInterval(checkAddress);
-        }
-        retries++;
-        if (retries > 40) { 
-          clearInterval(checkAddress);
-          localStorage.removeItem('wldguard_session'); 
-        }
-      }, 500);
+      setIsVerified(true);
+      simulateUserLoginRecap();
     }
   }, []);
 
-  // 2. Fetch User Balances when Verified
-  useEffect(() => {
-    if (isVerified && userAddress) {
-      const fetchBalances = async () => {
-        setIsFetchingBalances(true);
-        try {
-          setBalances({
-            liquid: 75.073708,
-            vault: 0.500000,
-            total: 75.573708
-          });
-        } catch (error) {
-          console.error("Balance fetch failed", error);
-        } finally {
-          setIsFetchingBalances(false);
-        }
-      };
-      fetchBalances();
-    }
-  }, [isVerified, userAddress]);
+  // Simulate analyzing the user's history when they log in
+  const simulateUserLoginRecap = () => {
+    // We mock a scenario: User hasn't opened the app in 14 days.
+    // Their old intent expired, but they earned passive yield.
+    setTimeout(() => {
+      setRecapData({
+        daysAway: 14,
+        yieldEarned: "+2.4 WLD",
+        intentStatus: "Expired & Safely Dissolved",
+        lastAction: "Market chopped sideways. Your capital remained safely parked in the vault."
+      });
+      setShowRecap(true);
+      
+      setBalances({
+        liquid: 0.000000,
+        vault: 102.400000, // Includes the simulated yield
+        total: 102.400000
+      });
+    }, 800);
+  };
 
   const handleVerify = async () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
-    setLoginError("");
-
-    try {
-      const nonce = `${Date.now()}${Math.random().toString(36).substring(2, 10)}`;
-      
-      const authPayload = await MiniKit.commandsAsync.walletAuth({
-        nonce: nonce,
-        statement: 'Connect to WLDguard v2.1',
-      });
-
-      if (authPayload?.finalPayload?.status === 'error') {
-         setLoginError("Connection request declined or timed out.");
-      } else if (authPayload?.finalPayload?.status === 'success') {
-         let fetchedAddress = MiniKit.walletAddress || (authPayload.finalPayload as any)?.address;
-         
-         if (!fetchedAddress) {
-            for (let i = 0; i < 80; i++) { 
-               await new Promise(r => setTimeout(r, 100));
-               if (MiniKit.walletAddress) {
-                  fetchedAddress = MiniKit.walletAddress;
-                  break;
-               }
-            }
-         }
-
-         if (fetchedAddress) {
-            setUserAddress(fetchedAddress);
-            localStorage.setItem('wldguard_session', 'active');
-            setIsVerified(true);
-
-            // 🚨 NEW: Register user to the database in the background!
-            fetch('/api/user', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ walletAddress: fetchedAddress, termsAccepted: true })
-            }).catch(console.error);
-
-         } else {
-            setLoginError("Hardware signature accepted, but address sync timed out. Try again.");
-         }
-      } else {
-         setLoginError("Failed to securely resolve wallet address from World App.");
-      }
-    } catch (error) {
-      console.error(error);
-      setLoginError("An unexpected error occurred during wallet authentication.");
-    }
-    
-    setIsLoading(false);
+    // Bypassing real hardware check for UI testing
+    setTimeout(() => {
+      localStorage.setItem('wldguard_session', 'active');
+      setIsVerified(true);
+      setIsLoading(false);
+      simulateUserLoginRecap();
+    }, 1000);
   };
 
   const handleDisconnect = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     localStorage.removeItem('wldguard_session');
     setIsVerified(false);
-    setUserAddress(null);
-    setProposal(null);
-    setSuccessMsg("");
-    setLoginError("");
+    setIntentProposal(null);
+    setShowRecap(false);
   };
 
-  const handleOptimize = async () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+  // 🚨 NEW: The AI now fetches the NEXT Target Intent, not an immediate trade
+  const handleFetchIntent = async () => {
     setIsLoading(true);
-    setProposal(null);
-    setSuccessMsg("");
+    setIntentProposal(null);
 
-    try {
-      const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-        body: JSON.stringify({ userId: userAddress })
+    // Simulating the AI forecasting the upper Bollinger Band for the week
+    setTimeout(() => {
+      setIntentProposal({
+        type: "SELL_INTENT",
+        targetPrice: "$0.45",
+        expiration: "7 Days",
+        description: "Based on current volatility, the statistical ceiling for WLD this week is $0.45. Sign this Intent to automatically sell 40% to USDC if this target is hit.",
+        expectedYield: "12.24% APY (Post-Execution USDC Vault)"
       });
-      
-      let data = await res.json().catch(() => ({ error: "Failed to parse server response." }));
-      
-      let signalType = data.signal || "HOLD";
-      let rawPrice = parseFloat(data.price);
-      if (isNaN(rawPrice)) rawPrice = 0.420; 
-      const formattedPrice = rawPrice.toFixed(3);
-
-      if (signalType === "HOLD" && balances.liquid > 0) {
-          signalType = "DEPOSIT_IDLE";
-      }
-
-      let microTxData = null;
-      
-      if (signalType !== "HOLD") {
-          const WLD_ADDRESS = "0x2cfc85d8e48f8eab294be644d9e25c3030863003";
-
-          microTxData = [
-              {
-                  address: WLD_ADDRESS,
-                  abi: [{ type: 'function', name: 'transfer', inputs: [{ name: 'to', type: 'address' }, { name: 'amount', type: 'uint256' }], outputs: [{ type: 'bool' }], stateMutability: 'nonpayable' }],
-                  functionName: 'transfer',
-                  args: [userAddress, "1000000000000000"] // 0.001 WLD Self-Transfer Bypass
-              }
-          ];
-      }
-
-      let finalDescription = "";
-      if (signalType === "HOLD") {
-          finalDescription = `Market is Stable at $${formattedPrice}. Let your assets continue earning passive vault yield.`;
-      } else if (signalType === "DEPOSIT_IDLE") {
-          finalDescription = `Market is stable at $${formattedPrice}. Deploying a secure 0.001 WLD Self-Transfer to verify hardware bridge!`;
-      } else {
-          finalDescription = `Market overextended. Target execution at $${formattedPrice}.`;
-      }
-
-      setProposal({
-        type: signalType,
-        description: finalDescription,
-        expectedYield: signalType === "HOLD" || signalType === "DEPOSIT_IDLE" ? "12.88% (WLD Vault)" : "12.24% (USDC Vault)",
-        txData: microTxData
-      });
-      
-    } catch (error: any) {
-      setProposal({
-        type: "ERROR",
-        description: `Frontend Crash: ${error.message || "Failed to reach WLDguard Quant Engine."}`,
-        expectedYield: "Network Error",
-        txData: null
-      });
-    } finally {
       setIsLoading(false);
-    }
+    }, 1200);
   };
 
-  const handleExecute = async () => {
-    if (!proposal || !proposal.txData) return;
-
-    try {
-      if (!MiniKit.isInstalled()) {
-        setProposal({
-           type: "ERROR",
-           description: "World App hardware bridge not detected. Cannot sign transaction.",
-           expectedYield: "Sync Error",
-           txData: null
-        });
-        return;
-      }
-      
-      const result = await MiniKit.commandsAsync.sendTransaction({
-        transaction: proposal.txData,
-        reference: `wldguard-tx-${Math.floor(Date.now() / 1000)}`
-      });
-
-      if (result?.finalPayload?.status === "success") {
-        setSuccessMsg("Success! Hardware accepted the signature and approved the contract.");
-        setProposal(null);
-      } else {
-        setProposal({
-           type: "ERROR",
-           description: `Transaction Cancelled or Failed. Status: ${result?.finalPayload?.status || 'Unknown'}.`,
-           expectedYield: "Execution Error",
-           txData: null
-        });
-      }
-    } catch (error) {
-      console.error("Execution error:", error);
-      setProposal({
-         type: "ERROR",
-         description: "Error sending transaction to hardware wallet.",
-         expectedYield: "System Error",
-         txData: null
-      });
-    }
+  const handleSignIntent = () => {
+    // Simulating the user cryptographically signing the intent logic
+    setSuccessMsg("Success! Your Intent is signed and securely registered. You can safely close the app.");
+    setIntentProposal(null);
   };
 
   if (!isMounted) {
@@ -335,13 +181,14 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white font-sans p-4">
       
+      {/* HEADER */}
       <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
             <TrendingUp size={22} className="text-emerald-400" />
             WLDguard
           </h1>
-          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound. • v2.1</span>
+          <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound.</span>
         </div>
         {isVerified && (
           <button 
@@ -354,6 +201,8 @@ export default function Home() {
       </div>
 
       <div className="w-full max-w-md w-full">
+        
+        {/* LOGGED OUT STOREFRONT */}
         {!isVerified && (
           <div className="animate-in fade-in duration-500 flex flex-col items-center">
             <div className="w-full">
@@ -365,40 +214,28 @@ export default function Home() {
                 Protect. Earn.<br/>Compound WLD.
               </h1>
               <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
-                Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
+                Set autonomous price targets, park your WLD in high-yield vaults, and let WLDguard execute while you sleep.
               </p>
             </div>
 
-            {/* GLOBAL ANALYTICS DASHBOARD SECTION */}
             <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
               <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
               <div className="flex justify-between items-center px-1">
                 <div className="flex-1 text-center">
                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
                   <p className="text-white font-mono font-bold text-sm">
-                    {globalStats.wld > 0 ? globalStats.wld.toLocaleString() : "..."} WLD
+                    {globalStats.wld.toLocaleString()} WLD
                   </p>
                 </div>
                 <div className="w-px h-6 bg-slate-800"></div>
                 <div className="flex-1 text-center">
                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
                   <p className="text-white font-mono font-bold text-sm">
-                    {globalStats.users > 0 ? globalStats.users : "..."}
+                    {globalStats.users}
                   </p>
-                </div>
-                <div className="w-px h-6 bg-slate-800"></div>
-                <div className="flex-1 text-center">
-                  <p className="text-[10px] text-slate-400 mb-1 font-medium">WLD Target Yield</p>
-                  <p className="text-emerald-400 font-mono font-bold text-sm">12.88% APY</p>
                 </div>
               </div>
             </div>
-            
-            {loginError && (
-              <div className="w-full bg-red-900/40 border border-red-500/30 p-3 rounded-xl mb-4">
-                <p className="text-xs text-red-400 text-center font-medium leading-relaxed">{loginError}</p>
-              </div>
-            )}
 
             <button 
               onClick={handleVerify}
@@ -407,114 +244,142 @@ export default function Home() {
             >
               {isLoading ? 'Requesting Connection...' : 'Verify with World ID'}
             </button>
-            <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
-              Zero Gas Fees. 100% Non-Custodial.
-            </p>
           </div>
         )}
 
+        {/* LOGGED IN DASHBOARD */}
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
-            <AlphaChart />
             
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
-              <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
-              
-              {isFetchingBalances ? (
-                <div className="h-10 bg-slate-800 rounded animate-pulse w-48 mb-6"></div>
-              ) : (
-                <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
-                  {balances.total.toFixed(6)} WLD
+            {/* 🚨 NEW: THE RECAP / GHOST USER WELCOME SCREEN */}
+            {showRecap && recapData && (
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-blue-500/30 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                
+                <div className="flex items-center gap-3 mb-4">
+                  <Sparkles className="text-blue-400" size={24} />
+                  <h2 className="text-lg font-bold text-white">Welcome Back!</h2>
                 </div>
-              )}
+                
+                <p className="text-sm text-slate-300 mb-5 leading-relaxed">
+                  You've been away for <span className="text-white font-bold">{recapData.daysAway} days</span>. Here is what happened to your portfolio while you were gone:
+                </p>
 
-              <div className="space-y-3 pt-4 border-t border-slate-800">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="flex items-center gap-2 text-slate-300">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span> Liquid Wallet
-                  </span>
-                  <span className="font-mono">{balances.liquid.toFixed(6)}</span>
-                </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="flex justify-between items-center gap-2 text-emerald-400 font-medium">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
-                  </span>
-                  <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-              
-              {successMsg ? (
-                <div className="text-center py-6 animate-in zoom-in duration-300">
-                  <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl border border-emerald-500/30">✓</div>
-                  <h3 className="text-lg font-bold text-emerald-400 mb-2">Transaction Executed</h3>
-                  <p className="text-sm text-slate-300 mb-6">{successMsg}</p>
-                  <button 
-                    onClick={() => setSuccessMsg("")}
-                    className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
-                  >
-                    Done
-                  </button>
-                </div>
-              ) : !proposal ? (
-                <div className="relative z-10">
-                  <h2 className="text-xl font-semibold mb-4 text-slate-100">AI Optimization</h2>
-                  <button 
-                    onClick={handleOptimize}
-                    disabled={isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
-                  >
-                    {isLoading ? 'Scanning Market...' : 'Optimize My WLD Now'}
-                  </button>
-                </div>
-              ) : (
-                <div className="relative z-10 animate-in slide-in-from-bottom-4">
-                  <div className={`p-4 rounded-2xl border mb-6 ${proposal.type === 'ERROR' ? 'bg-red-900/30 border-red-500/30' : 'bg-black/40 border-emerald-500/30'}`}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className={`text-xs font-bold uppercase ${proposal.type === 'ERROR' ? 'text-red-400' : 'text-emerald-400'}`}>
-                        {proposal.type === 'ERROR' ? 'System Alert' : 'Action Proposed'}
-                      </span>
-                      {proposal.type !== 'ERROR' && (
-                        <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-mono border border-emerald-500/20">
-                          {proposal.expectedYield}
-                        </span>
-                      )}
-                    </div>
-                    <p className={`text-sm leading-relaxed font-medium ${proposal.type === 'ERROR' ? 'text-red-300' : 'text-slate-300'}`}>
-                      {proposal.description}
-                    </p>
+                <div className="space-y-3 bg-black/40 p-4 rounded-2xl border border-slate-700/50 mb-5">
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400 flex items-center gap-2"><History size={14}/> Previous Intent</span>
+                    <span className="text-slate-300 font-medium">{recapData.intentStatus}</span>
                   </div>
-                  
-                  {proposal.txData ? (
-                    <button 
-                      onClick={handleExecute}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
-                    >
-                      Sign & Execute
-                    </button>
+                  <div className="flex justify-between items-center text-sm">
+                    <span className="text-slate-400">Market Action</span>
+                    <span className="text-slate-300 font-medium text-right max-w-[150px]">{recapData.lastAction}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-700/50">
+                    <span className="text-emerald-400 font-bold">Passive Yield Earned</span>
+                    <span className="text-emerald-400 font-mono font-bold text-base">{recapData.yieldEarned}</span>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setShowRecap(false)}
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
+                >
+                  Dismiss & View Dashboard
+                </button>
+              </div>
+            )}
+
+            {!showRecap && (
+              <>
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
+                  <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
+                  <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
+                    {balances.total.toFixed(6)} WLD
+                  </div>
+                  <div className="space-y-3 pt-4 border-t border-slate-800">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="flex items-center gap-2 text-slate-300">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Liquid Wallet
+                      </span>
+                      <span className="font-mono">{balances.liquid.toFixed(6)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="flex justify-between items-center gap-2 text-emerald-400 font-medium">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
+                      </span>
+                      <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 🚨 NEW: THE INTENT AUTHORIZATION CENTER */}
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
+                  {successMsg ? (
+                    <div className="text-center py-6 animate-in zoom-in duration-300">
+                      <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl border border-emerald-500/30">✓</div>
+                      <h3 className="text-lg font-bold text-emerald-400 mb-2">Intent Authorized</h3>
+                      <p className="text-sm text-slate-300 mb-6">{successMsg}</p>
+                      <button 
+                        onClick={() => setSuccessMsg("")}
+                        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
+                      >
+                        Done
+                      </button>
+                    </div>
+                  ) : !intentProposal ? (
+                    <div className="relative z-10">
+                      <h2 className="text-xl font-semibold mb-4 text-slate-100">Set Next Target</h2>
+                      <p className="text-sm text-slate-400 mb-5">Your assets are currently parked in high-yield vaults. Ask the AI to forecast your next exit target.</p>
+                      <button 
+                        onClick={handleFetchIntent}
+                        disabled={isLoading}
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                      >
+                        {isLoading ? 'Forecasting Market Bounds...' : 'Generate New Intent Target'}
+                      </button>
+                    </div>
                   ) : (
-                    <button 
-                      onClick={() => setProposal(null)}
-                      className={`w-full py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg ${proposal.type === 'ERROR' ? 'bg-slate-800 text-white' : 'bg-slate-800 text-white'}`}
-                    >
-                      Dismiss
-                    </button>
-                  )}
-                  
-                  {proposal.txData && (
-                    <button 
-                      onClick={() => setProposal(null)}
-                      className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
-                    >
-                      Cancel
-                    </button>
+                    <div className="relative z-10 animate-in slide-in-from-bottom-4">
+                      <div className="bg-black/40 p-5 rounded-2xl border border-blue-500/30 mb-6">
+                        <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Proposed Intent</span>
+                          <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded font-mono">
+                            Expires: {intentProposal.expiration}
+                          </span>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Execution Trigger</span>
+                          <span className="text-2xl font-mono font-bold text-emerald-400 block">{intentProposal.targetPrice}</span>
+                        </div>
+
+                        <p className="text-sm text-slate-300 leading-relaxed font-medium mb-4">
+                          {intentProposal.description}
+                        </p>
+                        
+                        <div className="bg-slate-800/50 p-3 rounded-xl">
+                           <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">Post-Execution Status</span>
+                           <span className="text-xs font-mono text-emerald-400">{intentProposal.expectedYield}</span>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        onClick={handleSignIntent}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
+                      >
+                        Sign & Authorize Intent
+                      </button>
+                      <button 
+                        onClick={() => setIntentProposal(null)}
+                        className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         )}
       </div>
