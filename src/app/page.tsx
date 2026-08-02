@@ -91,6 +91,7 @@ export default function Home() {
   
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
+  const [authError, setAuthError] = useState("");
   
   const [intentProposal, setIntentProposal] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState("");
@@ -157,40 +158,53 @@ export default function Home() {
   const handleVerify = async () => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
+    setAuthError("");
     try {
       if (MiniKit.isInstalled()) {
          const nonce = crypto?.randomUUID?.()?.replace(/-/g, "") || "1234567890abcdef";
+         const reqId = crypto?.randomUUID?.() || Date.now().toString(); // 🚨 NEW: Dynamic Request ID prevents silent rejection
+         
          const res = await MiniKit.commandsAsync.walletAuth({
             nonce: nonce,
-            requestId: '0',
+            requestId: reqId,
             expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
             notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
             statement: 'Sign in to WLDguard to authorize Intents.'
          });
          
-         if (res.finalPayload.status === 'success' && MiniKit.walletAddress) {
-            localStorage.setItem('wldguard_address', MiniKit.walletAddress);
-            
-            const dbRes = await fetch('/api/user', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ walletAddress: MiniKit.walletAddress, termsAccepted: false })
-            });
-            const userData = await dbRes.json();
-            
-            if (userData.user && userData.user.termsAccepted) {
-                localStorage.setItem('wldguard_session', 'active');
-                setIsVerified(true);
+         if (res?.finalPayload?.status === 'success') {
+            const address = MiniKit.walletAddress || res.finalPayload.address;
+            if (address) {
+                localStorage.setItem('wldguard_address', address);
+                
+                const dbRes = await fetch('/api/user', {
+                   method: 'POST',
+                   headers: { 'Content-Type': 'application/json' },
+                   body: JSON.stringify({ walletAddress: address, termsAccepted: false })
+                });
+                const userData = await dbRes.json();
+                
+                if (userData.user && userData.user.termsAccepted) {
+                    localStorage.setItem('wldguard_session', 'active');
+                    setIsVerified(true);
+                } else {
+                    setShowTerms(true);
+                }
             } else {
-                setShowTerms(true);
+                setAuthError("Auth succeeded, but World App didn't return an address.");
             }
+         } else {
+            // 🚨 NEW: Dump the exact failure reason to the screen!
+            setAuthError(`Wallet rejected auth. Status: ${res?.finalPayload?.status || 'Unknown'}`);
+            console.log("Auth Error Details:", res);
          }
       } else {
          // Fallback for standard browser
          setTimeout(() => { setShowTerms(true); }, 1000);
       }
-    } catch (error) {
+    } catch (error: any) {
        console.error("Auth error:", error);
+       setAuthError(`System Error: ${error.message}`);
     } finally {
        setIsLoading(false);
     }
@@ -356,58 +370,7 @@ export default function Home() {
                     
                     <p className="text-xs text-slate-500 italic mt-6">*Scroll to the bottom to accept.</p>
                  </div>
-                 
-                 <button 
-                    onClick={handleAcceptTerms}
-                    disabled={!hasScrolledTerms || isLoading}
-                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 py-3.5 rounded-xl font-bold transition-all shadow-lg active:scale-95"
-                 >
-                    {isLoading ? 'Saving...' : (hasScrolledTerms ? 'I Agree & Accept' : 'Scroll to Accept')}
-                 </button>
-                 <button 
-                    onClick={() => setShowTerms(false)}
-                    className="w-full mt-3 text-slate-400 text-sm font-medium py-2"
-                 >
-                    Cancel
-                 </button>
-              </div>
-           </div>
-        )}
-
-        {/* STATE 2: THE STOREFRONT (Logged Out) */}
-        {!isVerified && !showTerms && (
-           <div className="animate-in fade-in duration-500 flex flex-col items-center">
-             <AlphaChart />
              
-             <div className="text-center mb-6 mt-2">
-               <h1 className="text-4xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                 Protect. Earn.<br/>Compound WLD.
-               </h1>
-               <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
-                 Your intelligent assistant dedicated to compounding Worldcoin. Automated, non-custodial trailing limits.
-               </p>
-             </div>
-
-             <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
-               <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
-               <div className="flex justify-between items-center px-1">
-                 <div className="flex-1 text-center">
-                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
-                   <p className="text-white font-mono font-bold text-sm">{globalStats.wld.toFixed(0)} WLD</p>
-                 </div>
-                 <div className="w-px h-6 bg-slate-800"></div>
-                 <div className="flex-1 text-center">
-                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
-                   <p className="text-white font-mono font-bold text-sm">{globalStats.users}</p>
-                 </div>
-                 <div className="w-px h-6 bg-slate-800"></div>
-                 <div className="flex-1 text-center">
-                   <p className="text-[10px] text-slate-400 mb-1 font-medium">WLD Target Yield</p>
-                   <p className="text-emerald-400 font-mono font-bold text-sm">12.88% APY</p>
-                 </div>
-               </div>
-             </div>
-
              <button 
                onClick={handleVerify}
                disabled={isLoading}
@@ -415,6 +378,11 @@ export default function Home() {
              >
                {isLoading ? 'Verifying...' : 'Verify with World ID'}
              </button>
+             {authError && (
+               <p className="text-center text-xs text-red-400 mt-3 bg-red-950/50 p-2 rounded-lg border border-red-900/50">
+                 {authError}
+               </p>
+             )}
              <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
                Zero Gas Fees. 100% Non-Custodial.
              </p>
