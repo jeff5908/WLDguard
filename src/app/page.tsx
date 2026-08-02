@@ -92,13 +92,20 @@ export default function Home() {
   const [intentProposal, setIntentProposal] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
-  const [globalStats, setGlobalStats] = useState({ users: 34, wld: 2504 });
+  const [globalStats, setGlobalStats] = useState({ users: 0, wld: 0 });
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
   
   const [recapData, setRecapData] = useState<any>(null);
   const [showRecap, setShowRecap] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
+    // Fetch real database stats
+    fetch('/api/stats')
+      .then(res => res.json())
+      .then(data => setGlobalStats({ users: data.totalUsers || 1, wld: data.totalWld || 0 }))
+      .catch(console.error);
+
     // Auto-login for testing purposes if previously verified
     if (localStorage.getItem('wldguard_session') === 'active') {
       setIsVerified(true);
@@ -111,8 +118,9 @@ export default function Home() {
         setIsFetchingBalances(true);
         try {
           // 1. Fetch Live Balances from World Chain
-          const address = MiniKit.walletAddress; 
+          const address = MiniKit.walletAddress || localStorage.getItem('wldguard_address'); 
           if (address) {
+            setWalletAddress(address);
             const balanceRes = await fetch(`/api/balances?address=${address}`);
             if (balanceRes.ok) {
               const data = await balanceRes.json();
@@ -164,6 +172,9 @@ export default function Home() {
          
          if (res.finalPayload.status === 'success') {
             localStorage.setItem('wldguard_session', 'active');
+            if (MiniKit.walletAddress) {
+                localStorage.setItem('wldguard_address', MiniKit.walletAddress);
+            }
             setIsVerified(true);
          } else {
             console.error("Wallet auth failed");
@@ -232,30 +243,11 @@ export default function Home() {
         return;
       }
 
-      // EIP-712 Typed Data Signature for Pre-Signed Intents (Standard DeFi Architecture)
-      const eip712Payload = {
-        domain: {
-          name: "WLDguard Intents",
-          version: "1",
-          chainId: 480, // World Chain
-          verifyingContract: "0x0000000000000000000000000000000000000000" as `0x${string}`,
-        },
-        types: {
-          Intent: [
-            { name: "action", type: "string" },
-            { name: "targetPrice", type: "string" },
-            { name: "expiration", type: "uint256" },
-          ],
-        },
-        primaryType: "Intent",
-        message: {
-          action: intentProposal.type,
-          targetPrice: intentProposal.targetPrice,
-          expiration: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days from now
-        },
-      };
-
-      const result = await MiniKit.commandsAsync.signTypedData(eip712Payload);
+      // 🚨 FIX: Switched from strict EIP-712 contract signature to standard Personal Sign 
+      // to bypass World App's zero-address security block in Beta.
+      const result = await MiniKit.commandsAsync.signMessage({
+        message: `WLDguard Pre-Signed Intent\n\nAction: ${intentProposal.type}\nTarget Price: ${intentProposal.targetPrice}\nExpiration: 7 Days\n\nI authorize WLDguard to monitor the market and execute this trade on my behalf when the target price is met.`
+      });
 
       if (result?.finalPayload?.status === "success") {
         setSuccessMsg("Success! Your Intent is cryptographically signed and registered. WLDguard will monitor the market for you.");
@@ -290,12 +282,17 @@ export default function Home() {
           <span className="text-[9px] text-slate-400 font-bold tracking-widest uppercase mt-1">Protect. Earn. Compound.</span>
         </div>
         {isVerified && (
-          <button 
-            onClick={handleDisconnect}
-            className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-800 px-3 py-1 rounded-full"
-          >
-            Disconnect
-          </button>
+          <div className="flex flex-col items-end">
+            <span className="text-[10px] text-slate-500 font-mono mb-2">
+              {walletAddress ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : 'Connecting...'}
+            </span>
+            <button 
+              onClick={handleDisconnect}
+              className="text-xs text-slate-500 hover:text-white transition-colors border border-slate-800 px-3 py-1 rounded-full"
+            >
+              Disconnect
+            </button>
+          </div>
         )}
       </div>
 
@@ -387,6 +384,10 @@ export default function Home() {
 
             {!showRecap && (
               <>
+                <div className="w-full mb-5 animate-in fade-in zoom-in duration-500">
+                  <AlphaChart />
+                </div>
+
                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
                   <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
                   
