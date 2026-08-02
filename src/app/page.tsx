@@ -98,9 +98,6 @@ export default function Home() {
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [globalStats, setGlobalStats] = useState({ users: 0, wld: 0 });
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  
-  const [recapData, setRecapData] = useState<any>(null);
-  const [showRecap, setShowRecap] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -111,6 +108,8 @@ export default function Home() {
 
     if (localStorage.getItem('wldguard_session') === 'active') {
       setIsVerified(true);
+      const savedAddress = localStorage.getItem('wldguard_address');
+      if (savedAddress) setWalletAddress(savedAddress);
     }
   }, []);
 
@@ -132,18 +131,6 @@ export default function Home() {
               });
             }
           }
-
-          // We will turn OFF the fake ghost user recap for this production test
-          const hasGhosted = false; 
-          if (hasGhosted) {
-             setRecapData({
-                daysAway: 14,
-                yieldEarned: "+2.4 WLD", 
-                intentStatus: "Expired & Safely Dissolved",
-                lastAction: "Market chopped sideways. Your capital remained safely parked in the vault."
-              });
-            setShowRecap(true);
-          }
         } catch (error) {
           console.error("Failed to load dashboard data:", error);
         } finally {
@@ -162,7 +149,7 @@ export default function Home() {
     try {
       if (MiniKit.isInstalled()) {
          const nonce = crypto?.randomUUID?.()?.replace(/-/g, "") || "1234567890abcdef";
-         const reqId = crypto?.randomUUID?.() || Date.now().toString(); // 🚨 NEW: Dynamic Request ID prevents silent rejection
+         const reqId = crypto?.randomUUID?.() || Date.now().toString(); 
          
          const res = await MiniKit.commandsAsync.walletAuth({
             nonce: nonce,
@@ -176,6 +163,7 @@ export default function Home() {
             const address = MiniKit.walletAddress || res.finalPayload.address;
             if (address) {
                 localStorage.setItem('wldguard_address', address);
+                setWalletAddress(address);
                 
                 const dbRes = await fetch('/api/user', {
                    method: 'POST',
@@ -194,12 +182,10 @@ export default function Home() {
                 setAuthError("Auth succeeded, but World App didn't return an address.");
             }
          } else {
-            // 🚨 NEW: Dump the exact failure reason to the screen!
             setAuthError(`Wallet rejected auth. Status: ${res?.finalPayload?.status || 'Unknown'}`);
             console.log("Auth Error Details:", res);
          }
       } else {
-         // Fallback for standard browser
          setTimeout(() => { setShowTerms(true); }, 1000);
       }
     } catch (error: any) {
@@ -214,7 +200,7 @@ export default function Home() {
       if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
       setIsLoading(true);
       try {
-          const address = MiniKit.walletAddress || "0xBrowserTestAddress";
+          const address = MiniKit.walletAddress || localStorage.getItem('wldguard_address') || "0xBrowserTestAddress";
           await fetch('/api/user', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -236,7 +222,6 @@ export default function Home() {
     localStorage.removeItem('wldguard_address');
     setIsVerified(false);
     setIntentProposal(null);
-    setShowRecap(false);
     setWalletAddress(null);
   };
 
@@ -277,7 +262,6 @@ export default function Home() {
         return;
       }
 
-      // Standard Personal Sign payload (Compatible with World App's security filters)
       const result = await MiniKit.commandsAsync.signMessage({
         message: `WLDguard Pre-Signed Intent\n\nAction: ${intentProposal.type}\nTarget Price: ${intentProposal.targetPrice}\nExpiration: 7 Days\n\nI authorize WLDguard to monitor the market and execute this trade on my behalf when the target price is met.`
       });
@@ -285,7 +269,6 @@ export default function Home() {
       if (result?.finalPayload?.status === "success") {
         const cryptographicSignature = result.finalPayload.signature;
         
-        // Save the mathematical proof to our Neon DB
         await fetch('/api/intent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -343,7 +326,61 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
-        {/* STATE 1: TERMS OF SERVICE (Logged in, but Terms not accepted) */}
+        {/* STATE 1: THE STOREFRONT (Logged out, no terms shown yet) */}
+        {!showTerms && !isVerified && (
+          <div className="animate-in fade-in duration-500 flex flex-col items-center">
+            <div className="w-full">
+              <AlphaChart />
+            </div>
+            
+            <div className="text-center mb-6 mt-4">
+              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                Protect. Earn.<br/>Compound WLD.
+              </h1>
+              <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
+                Your intelligent assistant dedicated to compounding Worldcoin. Real-time, non-custodial WLD signals powered by quant math.
+              </p>
+            </div>
+
+            <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
+              <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
+              <div className="flex justify-between items-center px-1">
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
+                  <p className="text-white font-mono font-bold text-sm">{globalStats.wld.toLocaleString()} WLD</p>
+                </div>
+                <div className="w-px h-6 bg-slate-800"></div>
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
+                  <p className="text-white font-mono font-bold text-sm">{globalStats.users.toLocaleString()}</p>
+                </div>
+                <div className="w-px h-6 bg-slate-800"></div>
+                <div className="flex-1 text-center">
+                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Target Yield</p>
+                  <p className="text-emerald-400 font-mono font-bold text-sm">12.88% APY</p>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={handleVerify}
+              disabled={isLoading}
+              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
+            >
+              {isLoading ? 'Verifying...' : 'Verify with World ID'}
+            </button>
+            {authError && (
+              <p className="text-center text-xs text-red-400 mt-3 bg-red-950/50 p-2 rounded-lg border border-red-900/50">
+                {authError}
+              </p>
+            )}
+            <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
+              Zero Gas Fees. 100% Non-Custodial.
+            </p>
+          </div>
+        )}
+
+        {/* STATE 2: TERMS OF SERVICE (Logged in, but Terms not accepted) */}
         {showTerms && !isVerified && (
            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-300">
@@ -371,21 +408,18 @@ export default function Home() {
                     <p className="text-xs text-slate-500 italic mt-6">*Scroll to the bottom to accept.</p>
                  </div>
              
-             <button 
-               onClick={handleVerify}
-               disabled={isLoading}
-               className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
-             >
-               {isLoading ? 'Verifying...' : 'Verify with World ID'}
-             </button>
-             {authError && (
-               <p className="text-center text-xs text-red-400 mt-3 bg-red-950/50 p-2 rounded-lg border border-red-900/50">
-                 {authError}
-               </p>
-             )}
-             <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
-               Zero Gas Fees. 100% Non-Custodial.
-             </p>
+                 <button 
+                   onClick={handleAcceptTerms}
+                   disabled={isLoading || !hasScrolledTerms}
+                   className={`w-full font-extrabold py-3.5 rounded-2xl transition-all shadow-lg text-lg tracking-tight ${
+                     hasScrolledTerms 
+                       ? 'bg-emerald-500 hover:bg-emerald-400 text-white active:scale-95' 
+                       : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                   }`}
+                 >
+                   {isLoading ? 'Accepting...' : 'I Accept'}
+                 </button>
+              </div>
            </div>
         )}
 
@@ -393,135 +427,104 @@ export default function Home() {
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
             
-            {showRecap && recapData ? (
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-blue-500/30 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="flex items-center gap-3 mb-4">
-                  <Sparkles className="text-blue-400" size={24} />
-                  <h2 className="text-lg font-bold text-white">Welcome Back!</h2>
+            <AlphaChart />
+
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
+              <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
+              
+              {isFetchingBalances ? (
+                <div className="h-10 w-48 bg-slate-800 rounded animate-pulse mb-6"></div>
+              ) : (
+                <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
+                  {balances.total.toFixed(6)} WLD
                 </div>
-                <p className="text-sm text-slate-300 mb-5 leading-relaxed">
-                  You've been away for <span className="text-white font-bold">{recapData.daysAway} days</span>. Here is what happened to your portfolio while you were gone:
-                </p>
-                <div className="space-y-3 bg-black/40 p-4 rounded-2xl border border-slate-700/50 mb-5">
-                  <div className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-2">
-                    <span className="text-emerald-400 font-bold">Passive Yield Earned</span>
-                    <span className="text-emerald-400 font-mono font-bold text-base">{recapData.yieldEarned}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm pt-1">
-                    <span className="text-slate-400 flex items-center gap-2"><History size={14}/> Previous Intent</span>
-                    <span className="text-slate-300 font-medium">{recapData.intentStatus}</span>
-                  </div>
+              )}
+
+              <div className="space-y-3 pt-4 border-t border-slate-800">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2 text-slate-300">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span> Liquid Wallet
+                  </span>
+                  <span className="font-mono">{isFetchingBalances ? '...' : balances.liquid.toFixed(6)}</span>
                 </div>
-                <button 
-                  onClick={() => setShowRecap(false)}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
-                >
-                  Dismiss & View Dashboard
-                </button>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="flex items-center gap-2 text-emerald-400 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho Vaults
+                  </span>
+                  <span className="font-mono text-emerald-400">+{isFetchingBalances ? '...' : balances.vault.toFixed(6)}</span>
+                </div>
               </div>
-            ) : (
-              <>
-                <AlphaChart />
+            </div>
 
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
-                  <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
-                  
-                  {isFetchingBalances ? (
-                    <div className="h-10 w-48 bg-slate-800 rounded animate-pulse mb-6"></div>
-                  ) : (
-                    <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
-                      {balances.total.toFixed(6)} WLD
+            <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
+              {successMsg ? (
+                <div className="text-center py-6 animate-in zoom-in duration-300">
+                  <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl border border-emerald-500/30">✓</div>
+                  <h3 className="text-lg font-bold text-emerald-400 mb-2">Intent Authorized</h3>
+                  <p className="text-sm text-slate-300 mb-6">{successMsg}</p>
+                  <button 
+                    onClick={() => setSuccessMsg("")}
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : !intentProposal ? (
+                <div className="relative z-10">
+                  <h2 className="text-xl font-semibold mb-4 text-slate-100">Set Next Target</h2>
+                  <p className="text-sm text-slate-400 mb-5">Your assets are currently parked in high-yield vaults. Ask the AI to forecast your next execution target.</p>
+                  <button 
+                    onClick={handleFetchIntent}
+                    disabled={isLoading || isFetchingBalances}
+                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    {isLoading && <Loader2 size={18} className="animate-spin" />}
+                    {isLoading ? 'Forecasting Market Bounds...' : 'Generate New Intent Target'}
+                  </button>
+                </div>
+              ) : (
+                <div className="relative z-10 animate-in slide-in-from-bottom-4">
+                  <div className="bg-black/40 p-5 rounded-2xl border border-blue-500/30 mb-6">
+                    <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                      <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Proposed Intent</span>
+                      <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded font-mono">
+                        Expires: 7 Days
+                      </span>
                     </div>
-                  )}
+                    
+                    <div className="mb-4">
+                      <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Execution Trigger</span>
+                      <span className="text-2xl font-mono font-bold text-emerald-400 block">{intentProposal.targetPrice}</span>
+                    </div>
 
-                  <div className="space-y-3 pt-4 border-t border-slate-800">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="flex items-center gap-2 text-slate-300">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span> Liquid Wallet
-                      </span>
-                      <span className="font-mono">{isFetchingBalances ? '...' : balances.liquid.toFixed(6)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="flex items-center gap-2 text-emerald-400 font-medium">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho Vaults
-                      </span>
-                      <span className="font-mono text-emerald-400">+{isFetchingBalances ? '...' : balances.vault.toFixed(6)}</span>
+                    <p className="text-sm text-slate-300 leading-relaxed font-medium mb-4">
+                      {intentProposal.description}
+                    </p>
+                    
+                    <div className="bg-slate-800/50 p-3 rounded-xl">
+                       <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">Post-Execution Status</span>
+                       <span className="text-xs font-mono text-emerald-400">{intentProposal.expectedYield}</span>
                     </div>
                   </div>
+                  
+                  <button 
+                    onClick={handleSignIntent}
+                    disabled={isLoading}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg flex items-center justify-center gap-2"
+                  >
+                     {isLoading && <Loader2 size={18} className="animate-spin" />}
+                     {isLoading ? 'Signing...' : 'Sign & Authorize Intent'}
+                  </button>
+                  <button 
+                    onClick={() => setIntentProposal(null)}
+                    disabled={isLoading}
+                    className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
+                  >
+                    Cancel
+                  </button>
                 </div>
-
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
-                  {successMsg ? (
-                    <div className="text-center py-6 animate-in zoom-in duration-300">
-                      <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl border border-emerald-500/30">✓</div>
-                      <h3 className="text-lg font-bold text-emerald-400 mb-2">Intent Authorized</h3>
-                      <p className="text-sm text-slate-300 mb-6">{successMsg}</p>
-                      <button 
-                        onClick={() => setSuccessMsg("")}
-                        className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
-                      >
-                        Done
-                      </button>
-                    </div>
-                  ) : !intentProposal ? (
-                    <div className="relative z-10">
-                      <h2 className="text-xl font-semibold mb-4 text-slate-100">Set Next Target</h2>
-                      <p className="text-sm text-slate-400 mb-5">Your assets are currently parked in high-yield vaults. Ask the AI to forecast your next execution target.</p>
-                      <button 
-                        onClick={handleFetchIntent}
-                        disabled={isLoading || isFetchingBalances}
-                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center justify-center gap-2"
-                      >
-                        {isLoading && <Loader2 size={18} className="animate-spin" />}
-                        {isLoading ? 'Forecasting Market Bounds...' : 'Generate New Intent Target'}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="relative z-10 animate-in slide-in-from-bottom-4">
-                      <div className="bg-black/40 p-5 rounded-2xl border border-blue-500/30 mb-6">
-                        <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                          <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Proposed Intent</span>
-                          <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded font-mono">
-                            Expires: 7 Days
-                          </span>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Execution Trigger</span>
-                          <span className="text-2xl font-mono font-bold text-emerald-400 block">{intentProposal.targetPrice}</span>
-                        </div>
-
-                        <p className="text-sm text-slate-300 leading-relaxed font-medium mb-4">
-                          {intentProposal.description}
-                        </p>
-                        
-                        <div className="bg-slate-800/50 p-3 rounded-xl">
-                           <span className="text-[10px] text-slate-400 uppercase tracking-wider block mb-1">Post-Execution Status</span>
-                           <span className="text-xs font-mono text-emerald-400">{intentProposal.expectedYield}</span>
-                        </div>
-                      </div>
-                      
-                      <button 
-                        onClick={handleSignIntent}
-                        disabled={isLoading}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg flex items-center justify-center gap-2"
-                      >
-                         {isLoading && <Loader2 size={18} className="animate-spin" />}
-                         {isLoading ? 'Signing...' : 'Sign & Authorize Intent'}
-                      </button>
-                      <button 
-                        onClick={() => setIntentProposal(null)}
-                        disabled={isLoading}
-                        className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
