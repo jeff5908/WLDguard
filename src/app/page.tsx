@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
-import { TrendingUp, Sparkles, History } from 'lucide-react'; 
+import { TrendingUp, Sparkles, History, Loader2, CheckCircle2 } from 'lucide-react'; 
 
-// --- Interactive Alpha Chart (Unchanged) ---
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
   const data = [
@@ -88,54 +87,71 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingBalances, setIsFetchingBalances] = useState(true);
   
   const [intentProposal, setIntentProposal] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [globalStats, setGlobalStats] = useState({ users: 34, wld: 2504 });
   
-  // 🚨 NEW: State for the "Welcome Back / Ghost User" recap
   const [recapData, setRecapData] = useState<any>(null);
   const [showRecap, setShowRecap] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    // Auto-login for testing purposes
+    // Auto-login for testing purposes if previously verified
     if (localStorage.getItem('wldguard_session') === 'active') {
       setIsVerified(true);
-      simulateUserLoginRecap();
     }
   }, []);
 
-  // Simulate analyzing the user's history when they log in
-  const simulateUserLoginRecap = () => {
-    // We mock a scenario: User hasn't opened the app in 14 days.
-    // Their old intent expired, but they earned passive yield.
-    setTimeout(() => {
-      setRecapData({
-        daysAway: 14,
-        yieldEarned: "+2.4 WLD",
-        intentStatus: "Expired & Safely Dissolved",
-        lastAction: "Market chopped sideways. Your capital remained safely parked in the vault."
-      });
-      setShowRecap(true);
+  useEffect(() => {
+    if (isVerified) {
+      const loadDashboardData = async () => {
+        setIsFetchingBalances(true);
+        try {
+          // 1. Fetch Live Balances from World Chain
+          const address = MiniKit.walletAddress || "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"; // fallback for testing
+          const balanceRes = await fetch(`/api/balances?address=${address}`);
+          if (balanceRes.ok) {
+            const data = await balanceRes.json();
+            setBalances({
+              liquid: data.liquid || 0,
+              vault: data.vault || 0,
+              total: (data.liquid || 0) + (data.vault || 0)
+            });
+          }
+
+          // 2. Fetch User History for "Welcome Back" Recap (Simulated DB check for now)
+          // In full production, this calls /api/user/history
+          const hasGhosted = true; // Assume true for the UX test
+          if (hasGhosted) {
+             setRecapData({
+                daysAway: 14,
+                yieldEarned: "+2.4 WLD", // Would be calculated from DB snapshot vs current vault balance
+                intentStatus: "Expired & Safely Dissolved",
+                lastAction: "Market chopped sideways. Your capital remained safely parked in the vault."
+              });
+              setShowRecap(true);
+          }
+
+        } catch (error) {
+          console.error("Failed to load dashboard data:", error);
+        } finally {
+          setIsFetchingBalances(false);
+        }
+      };
       
-      setBalances({
-        liquid: 0.000000,
-        vault: 102.400000, // Includes the simulated yield
-        total: 102.400000
-      });
-    }, 800);
-  };
+      loadDashboardData();
+    }
+  }, [isVerified]);
 
   const handleVerify = async () => {
     setIsLoading(true);
-    // Bypassing real hardware check for UI testing
     setTimeout(() => {
       localStorage.setItem('wldguard_session', 'active');
       setIsVerified(true);
       setIsLoading(false);
-      simulateUserLoginRecap();
     }, 1000);
   };
 
@@ -146,28 +162,84 @@ export default function Home() {
     setShowRecap(false);
   };
 
-  // 🚨 NEW: The AI now fetches the NEXT Target Intent, not an immediate trade
   const handleFetchIntent = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
     setIntentProposal(null);
 
-    // Simulating the AI forecasting the upper Bollinger Band for the week
-    setTimeout(() => {
-      setIntentProposal({
-        type: "SELL_INTENT",
-        targetPrice: "$0.45",
-        expiration: "7 Days",
-        description: "Based on current volatility, the statistical ceiling for WLD this week is $0.45. Sign this Intent to automatically sell 40% to USDC if this target is hit.",
-        expectedYield: "12.24% APY (Post-Execution USDC Vault)"
+    try {
+      // Bypassing cache to ensure live MEXC data is used
+      const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          walletAddress: MiniKit.walletAddress,
+          balances: balances 
+        })
       });
+      
+      const data = await res.json();
+      if (res.ok && data.proposal) {
+        setIntentProposal(data.proposal);
+      } else {
+         console.error("AI Error:", data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch intent:", error);
+    } finally {
       setIsLoading(false);
-    }, 1200);
+    }
   };
 
-  const handleSignIntent = () => {
-    // Simulating the user cryptographically signing the intent logic
-    setSuccessMsg("Success! Your Intent is signed and securely registered. You can safely close the app.");
-    setIntentProposal(null);
+  const handleSignIntent = async () => {
+    setIsLoading(true);
+    try {
+      if (!MiniKit.isInstalled()) {
+        console.warn("Hardware bridge not detected. Simulating signature...");
+        setTimeout(() => {
+          setSuccessMsg("Success! Your Intent is signed and registered. WLDguard will execute when the target is hit.");
+          setIntentProposal(null);
+          setIsLoading(false);
+        }, 1500);
+        return;
+      }
+
+      // EIP-712 Typed Data Signature for Pre-Signed Intents (Standard DeFi Architecture)
+      const eip712Payload = {
+        domain: {
+          name: "WLDguard Intents",
+          version: "1",
+          chainId: 480, // World Chain
+          verifyingContract: "0x0000000000000000000000000000000000000000" as `0x${string}`,
+        },
+        types: {
+          Intent: [
+            { name: "action", type: "string" },
+            { name: "targetPrice", type: "string" },
+            { name: "expiration", type: "uint256" },
+          ],
+        },
+        primaryType: "Intent",
+        message: {
+          action: intentProposal.type,
+          targetPrice: intentProposal.targetPrice,
+          expiration: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days from now
+        },
+      };
+
+      const result = await MiniKit.commandsAsync.signTypedData(eip712Payload);
+
+      if (result?.finalPayload?.status === "success") {
+        setSuccessMsg("Success! Your Intent is cryptographically signed and registered. WLDguard will monitor the market for you.");
+        setIntentProposal(null);
+      } else {
+        console.error("Signature rejected.");
+      }
+    } catch (error) {
+      console.error("Signing error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!isMounted) {
@@ -181,7 +253,6 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white font-sans p-4">
       
-      {/* HEADER */}
       <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -202,7 +273,6 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
-        {/* LOGGED OUT STOREFRONT */}
         {!isVerified && (
           <div className="animate-in fade-in duration-500 flex flex-col items-center">
             <div className="w-full">
@@ -247,11 +317,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* LOGGED IN DASHBOARD */}
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
             
-            {/* 🚨 NEW: THE RECAP / GHOST USER WELCOME SCREEN */}
             {showRecap && recapData && (
               <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-blue-500/30 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -293,26 +361,31 @@ export default function Home() {
               <>
                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
                   <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
-                  <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
-                    {balances.total.toFixed(6)} WLD
-                  </div>
+                  
+                  {isFetchingBalances ? (
+                    <div className="h-10 w-48 bg-slate-800 rounded animate-pulse mb-6"></div>
+                  ) : (
+                    <div className="text-4xl font-mono font-bold text-white mb-6 tracking-tight">
+                      {balances.total.toFixed(6)} WLD
+                    </div>
+                  )}
+
                   <div className="space-y-3 pt-4 border-t border-slate-800">
                     <div className="flex justify-between items-center text-sm">
                       <span className="flex items-center gap-2 text-slate-300">
                         <span className="w-2 h-2 rounded-full bg-blue-500"></span> Liquid Wallet
                       </span>
-                      <span className="font-mono">{balances.liquid.toFixed(6)}</span>
+                      <span className="font-mono">{isFetchingBalances ? '...' : balances.liquid.toFixed(6)}</span>
                     </div>
                     <div className="flex justify-between items-center text-sm">
-                      <span className="flex justify-between items-center gap-2 text-emerald-400 font-medium">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho WLD Vault
+                      <span className="flex items-center gap-2 text-emerald-400 font-medium">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Morpho Vaults
                       </span>
-                      <span className="font-mono text-emerald-400">+{balances.vault.toFixed(6)}</span>
+                      <span className="font-mono text-emerald-400">+{isFetchingBalances ? '...' : balances.vault.toFixed(6)}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* 🚨 NEW: THE INTENT AUTHORIZATION CENTER */}
                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
                   {successMsg ? (
                     <div className="text-center py-6 animate-in zoom-in duration-300">
@@ -329,12 +402,13 @@ export default function Home() {
                   ) : !intentProposal ? (
                     <div className="relative z-10">
                       <h2 className="text-xl font-semibold mb-4 text-slate-100">Set Next Target</h2>
-                      <p className="text-sm text-slate-400 mb-5">Your assets are currently parked in high-yield vaults. Ask the AI to forecast your next exit target.</p>
+                      <p className="text-sm text-slate-400 mb-5">Your assets are currently parked in high-yield vaults. Ask the AI to forecast your next execution target.</p>
                       <button 
                         onClick={handleFetchIntent}
-                        disabled={isLoading}
-                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95"
+                        disabled={isLoading || isFetchingBalances}
+                        className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-700 py-4 rounded-xl font-bold transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center justify-center gap-2"
                       >
+                        {isLoading && <Loader2 size={18} className="animate-spin" />}
                         {isLoading ? 'Forecasting Market Bounds...' : 'Generate New Intent Target'}
                       </button>
                     </div>
@@ -344,7 +418,7 @@ export default function Home() {
                         <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
                           <span className="text-xs font-bold text-blue-400 uppercase tracking-widest">Proposed Intent</span>
                           <span className="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded font-mono">
-                            Expires: {intentProposal.expiration}
+                            Expires: 7 Days
                           </span>
                         </div>
                         
@@ -365,12 +439,15 @@ export default function Home() {
                       
                       <button 
                         onClick={handleSignIntent}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg"
+                        disabled={isLoading}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 py-4 rounded-xl font-bold transition-all shadow-lg active:scale-95 text-lg flex items-center justify-center gap-2"
                       >
-                        Sign & Authorize Intent
+                         {isLoading && <Loader2 size={18} className="animate-spin" />}
+                         {isLoading ? 'Signing...' : 'Sign & Authorize Intent'}
                       </button>
                       <button 
                         onClick={() => setIntentProposal(null)}
+                        disabled={isLoading}
                         className="w-full mt-3 text-slate-400 text-sm font-semibold py-2"
                       >
                         Cancel
