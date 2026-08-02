@@ -43,14 +43,14 @@ export async function POST(req: Request) {
         proposal = {
             type: "SELL_INTENT",
             targetPrice: `$${upperBand.toFixed(3)}`,
-            description: `Based on current rolling volatility, the statistical ceiling for WLD this week is $${upperBand.toFixed(3)}. Sign this Intent to automatically sell 40% to USDC if this target is hit.`,
+            description: `Based on current rolling volatility, the statistical ceiling for WLD this week is $${upperBand.toFixed(3)}. Sign this Intent to automatically sell 40% of your WLD to USDC if this target is hit to lock in profit.`,
             expectedYield: "12.24% APY (Post-Execution USDC Vault)"
         };
     } else {
         proposal = {
             type: "BUY_INTENT",
             targetPrice: `$${lowerBand.toFixed(3)}`,
-            description: `Based on current rolling volatility, the statistical floor for WLD this week is $${lowerBand.toFixed(3)}. Sign this Intent to automatically deploy your parked USDC to buy WLD if the price drops to this target.`,
+            description: `Based on current rolling volatility, the statistical floor for WLD this week is $${lowerBand.toFixed(3)}. Sign this Intent to automatically deploy your parked USDC to buy back WLD at this discount.`,
             expectedYield: "12.88% APY (Post-Execution WLD Vault)"
         };
     }

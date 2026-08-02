@@ -1,45 +1,50 @@
-// WLDguard - Prisma Database Schema
+// WLDguard Database Schema
 // This defines the architecture for our user tracking and dashboard analytics.
 
 generator client {
   provider = "prisma-client-js"
 }
 
-// Points to the DATABASE_URL in your .env file
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
-// 1. User Model: Tracks World ID verification and portfolio balances
+// 1. User Model: Tracks World ID and portfolio balances
 model User {
-  id            String     @id @default(uuid())
-  worldId       String     @unique // Nullifier hash from World ID
-  walletAddress String     @unique // The user's World App smart wallet
+  id              String     @id @default(uuid())
+  worldId         String     @unique // Nullifier hash from World ID
+  walletAddress   String     @unique // The user's World App smart wallet
+  
+  // Legal / Compliance
+  termsAccepted   Boolean    @default(false)
+  termsAcceptedAt DateTime?
   
   // Track theoretical balances for the dashboard
-  wldBalance    Float      @default(0.0)
-  usdcBalance   Float      @default(0.0)
+  wldBalance      Float      @default(0.0)
+  usdcBalance     Float      @default(0.0)
   
   // Relationships
-  proposals     Proposal[]
-  trades        Trade[]
+  proposals       Proposal[]
+  trades          Trade[]
   
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 }
 
-// 2. Proposal Model: Stores the trades proposed by the Gemini Agent
+// 2. Proposal Model: Stores the intents proposed by the Gemini Agent
 model Proposal {
   id            String   @id @default(uuid())
   userId        String
   user          User     @relation(fields: [userId], references: [id])
   
-  type          String   // e.g., 'TRIM_WLD', 'BUY_WLD', 'HOLD'
+  type          String   // 'SELL_INTENT', 'BUY_INTENT', 'HOLD'
   description   String
+  targetPrice   String
   expectedYield String
   
-  status        String   // 'PENDING_USER_APPROVAL', 'APPROVED', 'REJECTED'
+  signature     String?  // The cryptographic proof of user authorization
+  status        String   // 'ACTIVE', 'EXECUTED_ON_CHAIN', 'EXPIRED'
   
   createdAt     DateTime @default(now())
 }

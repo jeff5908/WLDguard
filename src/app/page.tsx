@@ -86,6 +86,9 @@ const AlphaChart = () => {
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
+  const [hasScrolledTerms, setHasScrolledTerms] = useState(false);
+  
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingBalances, setIsFetchingBalances] = useState(true);
   
@@ -160,7 +163,6 @@ export default function Home() {
     setIsLoading(true);
     try {
       if (MiniKit.isInstalled()) {
-         // REAL HARDWARE HANDSHAKE
          const nonce = crypto?.randomUUID?.()?.replace(/-/g, "") || "1234567890abcdef";
          const res = await MiniKit.commandsAsync.walletAuth({
             nonce: nonce,
@@ -170,20 +172,32 @@ export default function Home() {
             statement: 'Sign in to WLDguard to authorize Intents.'
          });
          
-         if (res.finalPayload.status === 'success') {
-            localStorage.setItem('wldguard_session', 'active');
-            if (MiniKit.walletAddress) {
-                localStorage.setItem('wldguard_address', MiniKit.walletAddress);
+         if (res.finalPayload.status === 'success' && MiniKit.walletAddress) {
+            localStorage.setItem('wldguard_address', MiniKit.walletAddress);
+            
+            // 🚨 NEW: Check Database for Terms of Service acceptance
+            const dbRes = await fetch('/api/user', {
+               method: 'POST',
+               headers: { 'Content-Type': 'application/json' },
+               body: JSON.stringify({ walletAddress: MiniKit.walletAddress, termsAccepted: false })
+            });
+            const userData = await dbRes.json();
+            
+            if (userData.user && userData.user.termsAccepted) {
+                // Already accepted terms, log them straight in
+                localStorage.setItem('wldguard_session', 'active');
+                setIsVerified(true);
+            } else {
+                // New user, show the legal gate
+                setShowTerms(true);
             }
-            setIsVerified(true);
          } else {
             console.error("Wallet auth failed");
          }
       } else {
          // Fallback for web browser testing
          setTimeout(() => {
-            localStorage.setItem('wldguard_session', 'active');
-            setIsVerified(true);
+            setShowTerms(true);
          }, 1000);
       }
     } catch (error) {
@@ -191,6 +205,27 @@ export default function Home() {
     } finally {
        setIsLoading(false);
     }
+  };
+
+  const handleAcceptTerms = async () => {
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+      setIsLoading(true);
+      try {
+          const address = MiniKit.walletAddress || "0xBrowserTestAddress";
+          await fetch('/api/user', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ walletAddress: address, termsAccepted: true })
+          });
+          
+          localStorage.setItem('wldguard_session', 'active');
+          setShowTerms(false);
+          setIsVerified(true);
+      } catch (error) {
+          console.error("Failed to save terms:", error);
+      } finally {
+          setIsLoading(false);
+      }
   };
 
   const handleDisconnect = () => {
@@ -243,13 +278,24 @@ export default function Home() {
         return;
       }
 
-      // 🚨 FIX: Switched from strict EIP-712 contract signature to standard Personal Sign 
-      // to bypass World App's zero-address security block in Beta.
       const result = await MiniKit.commandsAsync.signMessage({
         message: `WLDguard Pre-Signed Intent\n\nAction: ${intentProposal.type}\nTarget Price: ${intentProposal.targetPrice}\nExpiration: 7 Days\n\nI authorize WLDguard to monitor the market and execute this trade on my behalf when the target price is met.`
       });
 
       if (result?.finalPayload?.status === "success") {
+        const cryptographicSignature = result.finalPayload.signature;
+        
+        // 🚨 SAVE TO DATABASE
+        await fetch('/api/intent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                walletAddress: MiniKit.walletAddress,
+                intentData: intentProposal,
+                signature: cryptographicSignature
+            })
+        });
+
         setSuccessMsg("Success! Your Intent is cryptographically signed and registered. WLDguard will monitor the market for you.");
         setIntentProposal(null);
       } else {
@@ -298,52 +344,52 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
-        {!isVerified && (
-          <div className="animate-in fade-in duration-500 flex flex-col items-center">
-            <div className="w-full">
-              <AlphaChart />
-            </div>
-            
-            <div className="text-center mb-6">
-              <h1 className="text-4xl md:text-5xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                Protect. Earn.<br/>Compound WLD.
-              </h1>
-              <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
-                Set autonomous price targets, park your WLD in high-yield vaults, and let WLDguard execute while you sleep.
-              </p>
-            </div>
-
-            <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
-              <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
-              <div className="flex justify-between items-center px-1">
-                <div className="flex-1 text-center">
-                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
-                  <p className="text-white font-mono font-bold text-sm">
-                    {globalStats.wld.toLocaleString()} WLD
-                  </p>
-                </div>
-                <div className="w-px h-6 bg-slate-800"></div>
-                <div className="flex-1 text-center">
-                  <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
-                  <p className="text-white font-mono font-bold text-sm">
-                    {globalStats.users}
-                  </p>
-                </div>
+        {}
+        {showTerms && !isVerified && (
+           <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+                 <h2 className="text-xl font-bold text-white mb-2">Terms of Service</h2>
+                 <p className="text-sm text-slate-400 mb-4">Please review before continuing.</p>
+                 
+                 <div 
+                    className="bg-black/50 border border-slate-800 rounded-xl p-4 h-64 overflow-y-auto mb-6 text-sm text-slate-300 space-y-4"
+                    onScroll={(e) => {
+                       const target = e.target as HTMLElement;
+                       if (target.scrollHeight - target.scrollTop <= target.clientHeight + 20) {
+                          setHasScrolledTerms(true);
+                       }
+                    }}
+                 >
+                    <p className="font-bold text-white">1. Nature of the Service</p>
+                    <p>WLDguard is a non-custodial software interface. We do not hold, control, or have access to your funds.</p>
+                    
+                    <p className="font-bold text-white mt-4">2. No Investment Advice</p>
+                    <p>WLDguard provides impersonal, mathematically derived quantitative signals based on rolling market volatility. WLDguard does not provide personalized financial advice. You retain 100% discretion and must explicitly authorize every Intent.</p>
+                    
+                    <p className="font-bold text-white mt-4">3. Assumption of Risk</p>
+                    <p>Cryptocurrency markets are highly volatile. By authorizing WLDguard to monitor and route your assets to decentralized exchanges (DEXs) or protocols, you acknowledge smart contract risks. WLDguard is not liable for financial losses.</p>
+                    
+                    <p className="text-xs text-slate-500 italic mt-6">*Scroll to the bottom to accept.</p>
+                 </div>
+                 
+                 <button 
+                    onClick={handleAcceptTerms}
+                    disabled={!hasScrolledTerms || isLoading}
+                    className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 disabled:text-slate-500 py-3.5 rounded-xl font-bold transition-all shadow-lg active:scale-95"
+                 >
+                    {isLoading ? 'Saving...' : (hasScrolledTerms ? 'I Agree & Accept' : 'Scroll to Accept')}
+                 </button>
+                 <button 
+                    onClick={() => setShowTerms(false)}
+                    className="w-full mt-3 text-slate-400 text-sm font-medium py-2"
+                 >
+                    Cancel
+                 </button>
               </div>
-            </div>
-
-            <button 
-              onClick={handleVerify}
-              disabled={isLoading}
-              className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
-            >
-              {isLoading ? 'Requesting Connection...' : 'Verify with World ID'}
-            </button>
-          </div>
+           </div>
         )}
 
-        {isVerified && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
+        {!isVerified && !showTerms && (
             
             {showRecap && recapData && (
               <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-blue-500/30 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
