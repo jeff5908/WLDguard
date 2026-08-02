@@ -111,20 +111,21 @@ export default function Home() {
         setIsFetchingBalances(true);
         try {
           // 1. Fetch Live Balances from World Chain
-          const address = MiniKit.walletAddress || "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"; // fallback for testing
-          const balanceRes = await fetch(`/api/balances?address=${address}`);
-          if (balanceRes.ok) {
-            const data = await balanceRes.json();
-            setBalances({
-              liquid: data.liquid || 0,
-              vault: data.vault || 0,
-              total: (data.liquid || 0) + (data.vault || 0)
-            });
+          const address = MiniKit.walletAddress; 
+          if (address) {
+            const balanceRes = await fetch(`/api/balances?address=${address}`);
+            if (balanceRes.ok) {
+              const data = await balanceRes.json();
+              setBalances({
+                liquid: data.liquid || 0,
+                vault: data.vault || 0,
+                total: (data.liquid || 0) + (data.vault || 0)
+              });
+            }
           }
 
-          // 2. Fetch User History for "Welcome Back" Recap (Simulated DB check for now)
-          // In full production, this calls /api/user/history
-          const hasGhosted = true; // Assume true for the UX test
+          // 2. Fetch User History (Turned OFF for live dogfooding)
+          const hasGhosted = false; 
           if (hasGhosted) {
              setRecapData({
                 daysAway: 14,
@@ -132,7 +133,7 @@ export default function Home() {
                 intentStatus: "Expired & Safely Dissolved",
                 lastAction: "Market chopped sideways. Your capital remained safely parked in the vault."
               });
-              setShowRecap(true);
+            setShowRecap(true);
           }
 
         } catch (error) {
@@ -147,12 +148,38 @@ export default function Home() {
   }, [isVerified]);
 
   const handleVerify = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
-    setTimeout(() => {
-      localStorage.setItem('wldguard_session', 'active');
-      setIsVerified(true);
-      setIsLoading(false);
-    }, 1000);
+    try {
+      if (MiniKit.isInstalled()) {
+         // REAL HARDWARE HANDSHAKE
+         const nonce = crypto?.randomUUID?.()?.replace(/-/g, "") || "1234567890abcdef";
+         const res = await MiniKit.commandsAsync.walletAuth({
+            nonce: nonce,
+            requestId: '0',
+            expirationTime: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000),
+            notBefore: new Date(new Date().getTime() - 24 * 60 * 60 * 1000),
+            statement: 'Sign in to WLDguard to authorize Intents.'
+         });
+         
+         if (res.finalPayload.status === 'success') {
+            localStorage.setItem('wldguard_session', 'active');
+            setIsVerified(true);
+         } else {
+            console.error("Wallet auth failed");
+         }
+      } else {
+         // Fallback for web browser testing
+         setTimeout(() => {
+            localStorage.setItem('wldguard_session', 'active');
+            setIsVerified(true);
+         }, 1000);
+      }
+    } catch (error) {
+       console.error("Auth error:", error);
+    } finally {
+       setIsLoading(false);
+    }
   };
 
   const handleDisconnect = () => {
@@ -192,6 +219,7 @@ export default function Home() {
   };
 
   const handleSignIntent = async () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
     try {
       if (!MiniKit.isInstalled()) {
