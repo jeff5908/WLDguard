@@ -16,12 +16,12 @@ const AlphaChart = () => {
   ];
 
   return (
-    <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-5 shadow-2xl relative overflow-hidden group">
+    <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-5 shadow-2xl relative overflow-hidden group w-full">
       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
       
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h2 className="text-sm font-semibold text-slate-400 mb-1">Strategy Performance</h2>
+          <h2 className="text-sm font-semibold text-slate-400 mb-1">Strategy Performance (Backtest)</h2>
           <div className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <span className="text-emerald-400">+42.8%</span> vs Hold
           </div>
@@ -103,13 +103,11 @@ export default function Home() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Fetch real database stats
     fetch('/api/stats')
       .then(res => res.json())
       .then(data => setGlobalStats({ users: data.totalUsers || 1, wld: data.totalWld || 0 }))
       .catch(console.error);
 
-    // Auto-login for testing purposes if previously verified
     if (localStorage.getItem('wldguard_session') === 'active') {
       setIsVerified(true);
     }
@@ -120,7 +118,6 @@ export default function Home() {
       const loadDashboardData = async () => {
         setIsFetchingBalances(true);
         try {
-          // 1. Fetch Live Balances from World Chain
           const address = MiniKit.walletAddress || localStorage.getItem('wldguard_address'); 
           if (address) {
             setWalletAddress(address);
@@ -135,18 +132,17 @@ export default function Home() {
             }
           }
 
-          // 2. Fetch User History (Turned OFF for live dogfooding)
+          // We will turn OFF the fake ghost user recap for this production test
           const hasGhosted = false; 
           if (hasGhosted) {
              setRecapData({
                 daysAway: 14,
-                yieldEarned: "+2.4 WLD", // Would be calculated from DB snapshot vs current vault balance
+                yieldEarned: "+2.4 WLD", 
                 intentStatus: "Expired & Safely Dissolved",
                 lastAction: "Market chopped sideways. Your capital remained safely parked in the vault."
               });
             setShowRecap(true);
           }
-
         } catch (error) {
           console.error("Failed to load dashboard data:", error);
         } finally {
@@ -175,7 +171,6 @@ export default function Home() {
          if (res.finalPayload.status === 'success' && MiniKit.walletAddress) {
             localStorage.setItem('wldguard_address', MiniKit.walletAddress);
             
-            // 🚨 NEW: Check Database for Terms of Service acceptance
             const dbRes = await fetch('/api/user', {
                method: 'POST',
                headers: { 'Content-Type': 'application/json' },
@@ -184,21 +179,15 @@ export default function Home() {
             const userData = await dbRes.json();
             
             if (userData.user && userData.user.termsAccepted) {
-                // Already accepted terms, log them straight in
                 localStorage.setItem('wldguard_session', 'active');
                 setIsVerified(true);
             } else {
-                // New user, show the legal gate
                 setShowTerms(true);
             }
-         } else {
-            console.error("Wallet auth failed");
          }
       } else {
-         // Fallback for web browser testing
-         setTimeout(() => {
-            setShowTerms(true);
-         }, 1000);
+         // Fallback for standard browser
+         setTimeout(() => { setShowTerms(true); }, 1000);
       }
     } catch (error) {
        console.error("Auth error:", error);
@@ -230,9 +219,11 @@ export default function Home() {
 
   const handleDisconnect = () => {
     localStorage.removeItem('wldguard_session');
+    localStorage.removeItem('wldguard_address');
     setIsVerified(false);
     setIntentProposal(null);
     setShowRecap(false);
+    setWalletAddress(null);
   };
 
   const handleFetchIntent = async () => {
@@ -241,12 +232,12 @@ export default function Home() {
     setIntentProposal(null);
 
     try {
-      // Bypassing cache to ensure live MEXC data is used
+      const address = MiniKit.walletAddress || localStorage.getItem('wldguard_address');
       const res = await fetch(`/api/agent?timestamp=${Date.now()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          walletAddress: MiniKit.walletAddress,
+          walletAddress: address,
           balances: balances 
         })
       });
@@ -254,8 +245,6 @@ export default function Home() {
       const data = await res.json();
       if (res.ok && data.proposal) {
         setIntentProposal(data.proposal);
-      } else {
-         console.error("AI Error:", data);
       }
     } catch (error) {
       console.error("Failed to fetch intent:", error);
@@ -269,15 +258,12 @@ export default function Home() {
     setIsLoading(true);
     try {
       if (!MiniKit.isInstalled()) {
-        console.warn("Hardware bridge not detected. Simulating signature...");
-        setTimeout(() => {
-          setSuccessMsg("Success! Your Intent is signed and registered. WLDguard will execute when the target is hit.");
-          setIntentProposal(null);
-          setIsLoading(false);
-        }, 1500);
+        alert("Hardware bridge missing in web simulator. Please use physical phone.");
+        setIsLoading(false);
         return;
       }
 
+      // Standard Personal Sign payload (Compatible with World App's security filters)
       const result = await MiniKit.commandsAsync.signMessage({
         message: `WLDguard Pre-Signed Intent\n\nAction: ${intentProposal.type}\nTarget Price: ${intentProposal.targetPrice}\nExpiration: 7 Days\n\nI authorize WLDguard to monitor the market and execute this trade on my behalf when the target price is met.`
       });
@@ -285,12 +271,12 @@ export default function Home() {
       if (result?.finalPayload?.status === "success") {
         const cryptographicSignature = result.finalPayload.signature;
         
-        // 🚨 SAVE TO DATABASE
+        // Save the mathematical proof to our Neon DB
         await fetch('/api/intent', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                walletAddress: MiniKit.walletAddress,
+                walletAddress: MiniKit.walletAddress || localStorage.getItem('wldguard_address'),
                 intentData: intentProposal,
                 signature: cryptographicSignature
             })
@@ -298,8 +284,6 @@ export default function Home() {
 
         setSuccessMsg("Success! Your Intent is cryptographically signed and registered. WLDguard will monitor the market for you.");
         setIntentProposal(null);
-      } else {
-        console.error("Signature rejected.");
       }
     } catch (error) {
       console.error("Signing error:", error);
@@ -319,6 +303,7 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white font-sans p-4">
       
+      {/* Global Header */}
       <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -330,7 +315,7 @@ export default function Home() {
         {isVerified && (
           <div className="flex flex-col items-end">
             <span className="text-[10px] text-slate-500 font-mono mb-2">
-              {walletAddress ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : 'Connecting...'}
+              {walletAddress ? `${walletAddress.slice(0,6)}...${walletAddress.slice(-4)}` : 'Connected'}
             </span>
             <button 
               onClick={handleDisconnect}
@@ -344,7 +329,7 @@ export default function Home() {
 
       <div className="w-full max-w-md w-full">
         
-        {}
+        {/* STATE 1: TERMS OF SERVICE (Logged in, but Terms not accepted) */}
         {showTerms && !isVerified && (
            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-300">
@@ -389,36 +374,77 @@ export default function Home() {
            </div>
         )}
 
+        {/* STATE 2: THE STOREFRONT (Logged Out) */}
         {!isVerified && !showTerms && (
+           <div className="animate-in fade-in duration-500 flex flex-col items-center">
+             <AlphaChart />
+             
+             <div className="text-center mb-6 mt-2">
+               <h1 className="text-4xl font-extrabold mb-3 leading-tight tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
+                 Protect. Earn.<br/>Compound WLD.
+               </h1>
+               <p className="text-slate-400 leading-snug text-sm max-w-[320px] mx-auto">
+                 Your intelligent assistant dedicated to compounding Worldcoin. Automated, non-custodial trailing limits.
+               </p>
+             </div>
+
+             <div className="w-full bg-slate-900 border border-slate-800 p-4 rounded-3xl mb-5 shadow-xl">
+               <h3 className="text-[10px] text-slate-500 font-bold tracking-widest uppercase mb-3 text-center">Global Network Analytics</h3>
+               <div className="flex justify-between items-center px-1">
+                 <div className="flex-1 text-center">
+                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Total Protected</p>
+                   <p className="text-white font-mono font-bold text-sm">{globalStats.wld.toFixed(0)} WLD</p>
+                 </div>
+                 <div className="w-px h-6 bg-slate-800"></div>
+                 <div className="flex-1 text-center">
+                   <p className="text-[10px] text-slate-400 mb-1 font-medium">Active Humans</p>
+                   <p className="text-white font-mono font-bold text-sm">{globalStats.users}</p>
+                 </div>
+                 <div className="w-px h-6 bg-slate-800"></div>
+                 <div className="flex-1 text-center">
+                   <p className="text-[10px] text-slate-400 mb-1 font-medium">WLD Target Yield</p>
+                   <p className="text-emerald-400 font-mono font-bold text-sm">12.88% APY</p>
+                 </div>
+               </div>
+             </div>
+
+             <button 
+               onClick={handleVerify}
+               disabled={isLoading}
+               className="w-full bg-white hover:bg-gray-200 text-black font-extrabold py-3.5 rounded-2xl transition-all shadow-lg active:scale-95 text-lg tracking-tight"
+             >
+               {isLoading ? 'Verifying...' : 'Verify with World ID'}
+             </button>
+             <p className="text-center text-[11px] text-slate-500 mt-3 font-medium tracking-wide">
+               Zero Gas Fees. 100% Non-Custodial.
+             </p>
+           </div>
+        )}
+
+        {/* STATE 3: THE PRIVATE DASHBOARD (Logged In) */}
+        {isVerified && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
             
-            {showRecap && recapData && (
+            {showRecap && recapData ? (
               <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-blue-500/30 p-6 rounded-3xl shadow-2xl relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-                
                 <div className="flex items-center gap-3 mb-4">
                   <Sparkles className="text-blue-400" size={24} />
                   <h2 className="text-lg font-bold text-white">Welcome Back!</h2>
                 </div>
-                
                 <p className="text-sm text-slate-300 mb-5 leading-relaxed">
                   You've been away for <span className="text-white font-bold">{recapData.daysAway} days</span>. Here is what happened to your portfolio while you were gone:
                 </p>
-
                 <div className="space-y-3 bg-black/40 p-4 rounded-2xl border border-slate-700/50 mb-5">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400 flex items-center gap-2"><History size={14}/> Previous Intent</span>
-                    <span className="text-slate-300 font-medium">{recapData.intentStatus}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-slate-400">Market Action</span>
-                    <span className="text-slate-300 font-medium text-right max-w-[150px]">{recapData.lastAction}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm pt-2 border-t border-slate-700/50">
+                  <div className="flex justify-between items-center text-sm border-b border-slate-700/50 pb-2">
                     <span className="text-emerald-400 font-bold">Passive Yield Earned</span>
                     <span className="text-emerald-400 font-mono font-bold text-base">{recapData.yieldEarned}</span>
                   </div>
+                  <div className="flex justify-between items-center text-sm pt-1">
+                    <span className="text-slate-400 flex items-center gap-2"><History size={14}/> Previous Intent</span>
+                    <span className="text-slate-300 font-medium">{recapData.intentStatus}</span>
+                  </div>
                 </div>
-
                 <button 
                   onClick={() => setShowRecap(false)}
                   className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
@@ -426,13 +452,9 @@ export default function Home() {
                   Dismiss & View Dashboard
                 </button>
               </div>
-            )}
-
-            {!showRecap && (
+            ) : (
               <>
-                <div className="w-full mb-5 animate-in fade-in zoom-in duration-500">
-                  <AlphaChart />
-                </div>
+                <AlphaChart />
 
                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl">
                   <h2 className="text-sm font-semibold text-slate-400 mb-2">Total Net Worth</h2>
