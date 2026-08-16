@@ -6,8 +6,15 @@ import { worldchain } from 'viem/chains';
 const prisma = new PrismaClient();
 
 // 🚨 LIVE FIRE: Configure the Relayer Wallet
-// Render will read this key to authorize the transaction submission and pay the network gas
-const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY || "0x0000000000000000000000000000000000000000000000000000000000000000";
+const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
+
+// Fail gracefully with a clear message if Render can't find the key
+if (!RELAYER_PRIVATE_KEY || !RELAYER_PRIVATE_KEY.startsWith('0x')) {
+    console.error("🚨 CRITICAL ERROR: RELAYER_PRIVATE_KEY is missing or formatted incorrectly in Render!");
+    console.error("Make sure the key is exactly RELAYER_PRIVATE_KEY and the value starts with 0x.");
+    process.exit(1);
+}
+
 const account = privateKeyToAccount(RELAYER_PRIVATE_KEY);
 
 const publicClient = createPublicClient({
@@ -103,7 +110,6 @@ async function runMarketAnalysis() {
     let retries = 3;
     while (retries > 0) {
         try {
-            // 1. Fetch all ACTIVE intents that match the current market trigger
             const activeIntents = await prisma.proposal.findMany({
                 where: {
                     status: 'ACTIVE',
@@ -119,27 +125,24 @@ async function runMarketAnalysis() {
 
             console.log(`📡 Connecting to World Chain... Routing ${activeIntents.length} payload(s) for execution...`);
             
-            // 2. Loop through and execute on-chain
             for (const intent of activeIntents) {
                 console.log(`⚡ Executing Intent for Wallet: ${intent.user.walletAddress}`);
                 console.log(`🔐 Cryptographic Signature Verified: ${intent.signature.substring(0, 15)}...`);
 
-                // 3. Broadcast the transaction to the network
                 const txHash = await walletClient.sendTransaction({
                     to: intent.user.walletAddress,
-                    value: parseEther("0"), // The smart contract payload handles token routing
+                    value: parseEther("0"), 
                     data: "0x" 
                 });
 
                 console.log(`✅ On-Chain Success! TX Hash: ${txHash}`);
 
-                // 4. Update the database to mark it as executed
                 await prisma.proposal.update({
                     where: { id: intent.id },
                     data: { 
                         status: 'EXECUTED_ON_CHAIN',
                         description: `Executed on-chain at $${livePrice.toFixed(3)}. TX: ${txHash}`,
-                        targetPrice: intent.targetPrice // Syncing the schema field!
+                        targetPrice: intent.targetPrice 
                     }
                 });
             }
@@ -164,4 +167,4 @@ console.log("🚀 Starting WLDguard Intent Relayer Engine...");
 console.log("=============================================");
 
 runMarketAnalysis();
-setInterval(runMarketAnalysis, 300000); // 5-minute Relayer sweeps
+setInterval(runMarketAnalysis, 300000);
