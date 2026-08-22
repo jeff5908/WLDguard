@@ -95,6 +95,7 @@ export default function Home() {
   
   const [intentProposal, setIntentProposal] = useState<any>(null);
   const [activeIntent, setActiveIntent] = useState<any>(null);
+  const [recentReceipt, setRecentReceipt] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [globalStats, setGlobalStats] = useState({ users: 0, wld: 0 });
@@ -139,6 +140,13 @@ export default function Home() {
             if (intentRes.ok) {
               const intentData = await intentRes.json();
               setActiveIntent(intentData.proposal || null);
+            }
+
+            // 3. Fetch Recent Receipt (Checking for recent executions)
+            const receiptRes = await fetch(`/api/intent/receipt?address=${address}`);
+            if (receiptRes.ok) {
+              const receiptData = await receiptRes.json();
+              setRecentReceipt(receiptData.receipt || null);
             }
           }
         } catch (error) {
@@ -233,6 +241,7 @@ export default function Home() {
     setIsVerified(false);
     setIntentProposal(null);
     setActiveIntent(null);
+    setRecentReceipt(null);
     setWalletAddress(null);
   };
 
@@ -480,6 +489,35 @@ export default function Home() {
                     className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all"
                   >
                     Done
+                  </button>
+                </div>
+              ) : recentReceipt ? (
+                /* NEW UI: THE SUCCESS RECEIPT */
+                <div className="relative z-10 animate-in slide-in-from-bottom-4 text-center py-2">
+                  <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+                    <History size={32} />
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2">Trade Executed!</h3>
+                  <p className="text-sm text-slate-300 mb-6 font-medium">
+                    While you were away, WLDguard successfully caught a volatility spike and executed your intent.
+                  </p>
+                  
+                  <div className="bg-black/50 border border-slate-700 p-4 rounded-2xl mb-6 text-left shadow-inner">
+                    <div className="flex justify-between items-center mb-2">
+                       <span className="text-[10px] text-slate-500 uppercase tracking-wider">Execution Price</span>
+                       <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded font-mono border border-emerald-500/20">Success</span>
+                    </div>
+                    <span className="text-3xl font-mono font-bold text-emerald-400 block mb-3">{recentReceipt.targetPrice}</span>
+                    <p className="text-xs text-slate-400 leading-relaxed font-mono">
+                      {recentReceipt.description}
+                    </p>
+                  </div>
+
+                  <button 
+                    onClick={() => setRecentReceipt(null)}
+                    className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95"
+                  >
+                    Awesome!
                   </button>
                 </div>
               ) : activeIntent ? (
