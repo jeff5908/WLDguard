@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MiniKit } from '@worldcoin/minikit-js';
-import { TrendingUp, Sparkles, History, Loader2, CheckCircle2 } from 'lucide-react'; 
+import { TrendingUp, Sparkles, History, Loader2, CheckCircle2, Radar } from 'lucide-react'; 
 
 const AlphaChart = () => {
   const [activePoint, setActivePoint] = useState<number | null>(null);
@@ -94,6 +94,7 @@ export default function Home() {
   const [authError, setAuthError] = useState("");
   
   const [intentProposal, setIntentProposal] = useState<any>(null);
+  const [activeIntent, setActiveIntent] = useState<any>(null);
   const [successMsg, setSuccessMsg] = useState("");
   const [balances, setBalances] = useState({ liquid: 0, vault: 0, total: 0 });
   const [globalStats, setGlobalStats] = useState({ users: 0, wld: 0 });
@@ -121,6 +122,8 @@ export default function Home() {
           const address = MiniKit.walletAddress || localStorage.getItem('wldguard_address'); 
           if (address) {
             setWalletAddress(address);
+            
+            // 1. Fetch Balances
             const balanceRes = await fetch(`/api/balances?address=${address}`);
             if (balanceRes.ok) {
               const data = await balanceRes.json();
@@ -129,6 +132,13 @@ export default function Home() {
                 vault: data.vault || 0,
                 total: (data.liquid || 0) + (data.vault || 0)
               });
+            }
+
+            // 2. Fetch Active Intent (Checking if they already signed one)
+            const intentRes = await fetch(`/api/intent/active?address=${address}`);
+            if (intentRes.ok) {
+              const intentData = await intentRes.json();
+              setActiveIntent(intentData.proposal || null);
             }
           }
         } catch (error) {
@@ -222,6 +232,7 @@ export default function Home() {
     localStorage.removeItem('wldguard_address');
     setIsVerified(false);
     setIntentProposal(null);
+    setActiveIntent(null);
     setWalletAddress(null);
   };
 
@@ -279,7 +290,9 @@ export default function Home() {
             })
         });
 
-        setSuccessMsg("Success! Your Intent is cryptographically signed and registered. WLDguard will monitor the market for you.");
+        // UI Upgrade: Instantly flip them to the Active Monitoring state
+        setActiveIntent(intentProposal);
+        setSuccessMsg("Success! Your Intent is cryptographically signed and registered. WLDguard is monitoring the market.");
         setIntentProposal(null);
       }
     } catch (error) {
@@ -469,7 +482,32 @@ export default function Home() {
                     Done
                   </button>
                 </div>
+              ) : activeIntent ? (
+                /* NEW UI: THE ACTIVE RADAR STATE */
+                <div className="relative z-10 animate-in slide-in-from-bottom-4">
+                  <div className="bg-emerald-950/20 border border-emerald-500/30 p-5 rounded-2xl mb-2 shadow-inner">
+                    <div className="flex justify-between items-center mb-4 border-b border-emerald-900/50 pb-3">
+                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                        <Radar size={16} className="animate-pulse" />
+                        Active Monitoring
+                      </span>
+                      <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-1 rounded font-mono">
+                        Standby
+                      </span>
+                    </div>
+                    
+                    <div className="mb-4">
+                      <span className="text-[10px] text-slate-500 uppercase tracking-wider block mb-1">Execution Trigger</span>
+                      <span className="text-3xl font-mono font-bold text-white block">{activeIntent.targetPrice}</span>
+                    </div>
+
+                    <p className="text-xs text-slate-400 leading-relaxed font-medium">
+                      WLDguard is actively monitoring the World Chain. Your {activeIntent.type === 'SELL_INTENT' ? 'sell' : 'buy'} intent will automatically execute if this mathematical threshold is reached.
+                    </p>
+                  </div>
+                </div>
               ) : !intentProposal ? (
+                /* STANDARD GENERATOR STATE */
                 <div className="relative z-10">
                   <h2 className="text-xl font-semibold mb-4 text-slate-100">Set Next Target</h2>
                   <p className="text-sm text-slate-400 mb-5">Your assets are currently parked in high-yield vaults. Ask the AI to forecast your next execution target.</p>
@@ -483,6 +521,7 @@ export default function Home() {
                   </button>
                 </div>
               ) : (
+                /* SIGNATURE APPROVAL STATE */
                 <div className="relative z-10 animate-in slide-in-from-bottom-4">
                   <div className="bg-black/40 p-5 rounded-2xl border border-blue-500/30 mb-6">
                     <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
