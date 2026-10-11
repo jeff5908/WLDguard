@@ -10,6 +10,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           html, body {
             background-color: #020617;
             color: #f8fafc;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: none;
+            overflow: scroll;
           }
         `}</style>
       </head>
