@@ -106,7 +106,7 @@ async function runMarketAnalysis() {
         return; // Exit if no threshold is met
     }
 
-    // --- LIVE FIRE: Intent Execution on World Chain ---
+// --- LIVE FIRE: Intent Execution on World Chain ---
     let retries = 3;
     while (retries > 0) {
         try {
@@ -145,6 +145,15 @@ async function runMarketAnalysis() {
                         targetPrice: intent.targetPrice 
                     }
                 });
+
+                // 📱 PUSH NOTIFICATION TRIGGER
+                if (intent.user.worldcoinId && intent.user.notifications_enabled) {
+                    await sendWLDguardNotification(
+                        intent.user.worldcoinId, 
+                        action === 'TRIM_INTENT_REACHED' ? 'Sell' : 'Buy', 
+                        livePrice
+                    );
+                }
             }
             
             console.log(`🎉 Relayer Cycle Complete. All intents fulfilled securely.`);
@@ -162,9 +171,53 @@ async function runMarketAnalysis() {
     }
 }
 
+/**
+ * Pushes a native notification directly to the user's World App
+ */
+async function sendWLDguardNotification(worldcoinUserId, tradeSide, executionPrice) {
+    const apiKey = process.env.WORLDCOIN_DEV_PORTAL_KEY;
+    
+    if (!apiKey) {
+        console.warn("⚠️ Skipping push notification: WORLDCOIN_DEV_PORTAL_KEY not set in .env");
+        return;
+    }
+
+    const title = tradeSide === 'Sell' 
+        ? "🚨 WLDguard Profit Secured" 
+        : "📉 WLDguard Dip Bought";
+        
+    const body = tradeSide === 'Sell'
+        ? `Great job \${username}! WLDguard just sold your WLD at $${executionPrice.toFixed(3)} to lock in profits.`
+        : `Market dip detected, \${username}. WLDguard just accumulated WLD at $${executionPrice.toFixed(3)}.`;
+
+    try {
+        const response = await fetch("https://developer.worldcoin.org/api/v2/minikit/send-notification", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                users: [worldcoinUserId],
+                title: title,
+                body: body,
+                url: "https://wldguard.com/portfolio"
+            })
+        });
+
+        if (response.ok) {
+            console.log(`📱 Push Notification sent to ${worldcoinUserId}`);
+        } else {
+            const err = await response.json();
+            console.error(`❌ Push failed for ${worldcoinUserId}:`, err);
+        }
+    } catch (error) {
+        console.error("❌ Failed to ping Worldcoin API:", error);
+    }
+}
+
 console.log("=============================================");
 console.log("🚀 Starting WLDguard Intent Relayer Engine...");
 console.log("=============================================");
 
 runMarketAnalysis();
-setInterval(runMarketAnalysis, 300000);
