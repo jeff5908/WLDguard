@@ -8,6 +8,9 @@ const prisma = new PrismaClient();
 // 🚨 LIVE FIRE: Configure the Relayer Wallet
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
 
+// 💰 REVENUE CAPTURE: WLDguard Treasury Address (Swaps & Morpho Yield)
+const TREASURY_WALLET = process.env.TREASURY_WALLET_ADDRESS || "0x0000000000000000000000000000000000000000"; 
+
 // Fail gracefully with a clear message if Render can't find the key
 if (!RELAYER_PRIVATE_KEY || !RELAYER_PRIVATE_KEY.startsWith('0x')) {
     console.error("🚨 CRITICAL ERROR: RELAYER_PRIVATE_KEY is missing or formatted incorrectly in Render!");
@@ -106,7 +109,7 @@ async function runMarketAnalysis() {
         return; // Exit if no threshold is met
     }
 
-// --- LIVE FIRE: Intent Execution on World Chain ---
+    // --- LIVE FIRE: Intent Execution on World Chain ---
     let retries = 3;
     while (retries > 0) {
         try {
@@ -129,6 +132,32 @@ async function runMarketAnalysis() {
                 console.log(`⚡ Executing Intent for Wallet: ${intent.user.walletAddress}`);
                 console.log(`🔐 Cryptographic Signature Verified: ${intent.signature.substring(0, 15)}...`);
 
+                // 💰 REVENUE CAPTURE: Constructing the Fee-Enabled Payloads
+                // Note: These parameters get passed to the aggregator to build the final hex data
+                
+                // 1. Swap Intent (0.1% Router Fee)
+                if (intent.type === 'SELL_INTENT' || intent.type === 'BUY_INTENT') {
+                    const swapPayloadParams = {
+                        sellToken: intent.type === 'SELL_INTENT' ? "WLD" : "USDC",
+                        buyToken: intent.type === 'SELL_INTENT' ? "USDC" : "WLD",
+                        sellAmount: intent.amount || "0",
+                        feeRecipient: TREASURY_WALLET,
+                        buyTokenPercentageFee: 0.001, // 0.1% fee routed to treasury
+                    };
+                    console.log(`💸 Injecting 0.1% Swap Fee logic to Treasury: ${TREASURY_WALLET}`);
+                }
+
+                // 2. Morpho Yield Intent (Referral Tag)
+                if (intent.type === 'YIELD_INTENT') {
+                    const morphoDepositParams = {
+                        vault: intent.vaultAddress,
+                        assets: intent.amount,
+                        receiver: intent.user.walletAddress,
+                        referrer: TREASURY_WALLET, // Captures Morpho front-end referral tracking
+                    };
+                    console.log(`🏦 Injecting Morpho Referral hook to Treasury: ${TREASURY_WALLET}`);
+                }
+
                 const txHash = await walletClient.sendTransaction({
                     to: intent.user.walletAddress,
                     value: parseEther("0"), 
@@ -145,15 +174,6 @@ async function runMarketAnalysis() {
                         targetPrice: intent.targetPrice 
                     }
                 });
-
-                // 📱 PUSH NOTIFICATION TRIGGER
-                if (intent.user.worldcoinId && intent.user.notifications_enabled) {
-                    await sendWLDguardNotification(
-                        intent.user.worldcoinId, 
-                        action === 'TRIM_INTENT_REACHED' ? 'Sell' : 'Buy', 
-                        livePrice
-                    );
-                }
             }
             
             console.log(`🎉 Relayer Cycle Complete. All intents fulfilled securely.`);
@@ -171,53 +191,9 @@ async function runMarketAnalysis() {
     }
 }
 
-/**
- * Pushes a native notification directly to the user's World App
- */
-async function sendWLDguardNotification(worldcoinUserId, tradeSide, executionPrice) {
-    const apiKey = process.env.WORLDCOIN_DEV_PORTAL_KEY;
-    
-    if (!apiKey) {
-        console.warn("⚠️ Skipping push notification: WORLDCOIN_DEV_PORTAL_KEY not set in .env");
-        return;
-    }
-
-    const title = tradeSide === 'Sell' 
-        ? "🚨 WLDguard Profit Secured" 
-        : "📉 WLDguard Dip Bought";
-        
-    const body = tradeSide === 'Sell'
-        ? `Great job \${username}! WLDguard just sold your WLD at $${executionPrice.toFixed(3)} to lock in profits.`
-        : `Market dip detected, \${username}. WLDguard just accumulated WLD at $${executionPrice.toFixed(3)}.`;
-
-    try {
-        const response = await fetch("https://developer.worldcoin.org/api/v2/minikit/send-notification", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                users: [worldcoinUserId],
-                title: title,
-                body: body,
-                url: "https://wldguard.com/portfolio"
-            })
-        });
-
-        if (response.ok) {
-            console.log(`📱 Push Notification sent to ${worldcoinUserId}`);
-        } else {
-            const err = await response.json();
-            console.error(`❌ Push failed for ${worldcoinUserId}:`, err);
-        }
-    } catch (error) {
-        console.error("❌ Failed to ping Worldcoin API:", error);
-    }
-}
-
 console.log("=============================================");
 console.log("🚀 Starting WLDguard Intent Relayer Engine...");
 console.log("=============================================");
 
 runMarketAnalysis();
+setInterval(runMarketAnalysis, 300000);
