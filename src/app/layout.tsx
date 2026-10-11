@@ -13,7 +13,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }
         `}</style>
       </head>
-      <body className="bg-slate-950 text-white min-h-screen w-full m-0 p-0">
+<body className="bg-slate-950 text-white min-h-screen w-full m-0 p-0 overscroll-y-none overflow-y-auto overflow-x-hidden">
         {}
         <MiniKitProvider>
           {children}
