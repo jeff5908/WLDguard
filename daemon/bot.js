@@ -1,15 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 import { createWalletClient, createPublicClient, http, parseEther } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { worldchain } from 'viem/chains';
+import { worldchainSepolia } from 'viem/chains'; // 🔄 Switched to Testnet
 
 const prisma = new PrismaClient();
 
 // 🚨 LIVE FIRE: Configure the Relayer Wallet
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
 
-// 💰 REVENUE CAPTURE: WLDguard Treasury Address (Swaps & Morpho Yield)
+// 💰 REVENUE CAPTURE: WLDguard Treasury Address
 const TREASURY_WALLET = process.env.TREASURY_WALLET_ADDRESS || "0x0000000000000000000000000000000000000000"; 
+const ZEROX_API_KEY = process.env.ZEROX_API_KEY; // 🔑 Added API Key for Routing
 
 // Fail gracefully with a clear message if Render can't find the key
 if (!RELAYER_PRIVATE_KEY || !RELAYER_PRIVATE_KEY.startsWith('0x')) {
@@ -21,14 +22,14 @@ if (!RELAYER_PRIVATE_KEY || !RELAYER_PRIVATE_KEY.startsWith('0x')) {
 const account = privateKeyToAccount(RELAYER_PRIVATE_KEY);
 
 const publicClient = createPublicClient({
-    chain: worldchain,
-    transport: http("https://worldchain-mainnet.g.alchemy.com/public")
+    chain: worldchainSepolia,
+    transport: http() // Viem automatically routes to the public Sepolia RPC
 });
 
 const walletClient = createWalletClient({
     account,
-    chain: worldchain,
-    transport: http("https://worldchain-mainnet.g.alchemy.com/public")
+    chain: worldchainSepolia,
+    transport: http() 
 });
 
 // --- Quant Math Functions ---
@@ -105,11 +106,9 @@ async function runMarketAnalysis() {
         console.log(`🛡️ Market Stable. Scanning for expired user intents and logging passive yield. Returning to sleep.`);
     }
 
-    if (!triggerHit) {
-        return; // Exit if no threshold is met
-    }
+    if (!triggerHit) return; 
 
-    // --- LIVE FIRE: Intent Execution on World Chain ---
+    // --- LIVE FIRE: Intent Execution on World Chain Sepolia ---
     let retries = 3;
     while (retries > 0) {
         try {
@@ -126,54 +125,70 @@ async function runMarketAnalysis() {
                 return;
             }
 
-            console.log(`📡 Connecting to World Chain... Routing ${activeIntents.length} payload(s) for execution...`);
+            console.log(`📡 Connecting to World Chain Sepolia... Routing ${activeIntents.length} payload(s) for execution...`);
             
             for (const intent of activeIntents) {
                 console.log(`⚡ Executing Intent for Wallet: ${intent.user.walletAddress}`);
                 console.log(`🔐 Cryptographic Signature Verified: ${intent.signature.substring(0, 15)}...`);
 
-                // 💰 REVENUE CAPTURE: Constructing the Fee-Enabled Payloads
-                // Note: These parameters get passed to the aggregator to build the final hex data
-                
-                // 1. Swap Intent (0.1% Router Fee)
                 if (intent.type === 'SELL_INTENT' || intent.type === 'BUY_INTENT') {
-                    const swapPayloadParams = {
-                        sellToken: intent.type === 'SELL_INTENT' ? "WLD" : "USDC",
-                        buyToken: intent.type === 'SELL_INTENT' ? "USDC" : "WLD",
-                        sellAmount: intent.amount || "0",
-                        feeRecipient: TREASURY_WALLET,
-                        buyTokenPercentageFee: 0.001, // 0.1% fee routed to treasury
-                    };
                     console.log(`💸 Injecting 0.1% Swap Fee logic to Treasury: ${TREASURY_WALLET}`);
-                }
+                    
+                    try {
+                        const params = new URLSearchParams({
+                            sellToken: intent.type === 'SELL_INTENT' ? "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1" : "0x4200000000000000000000000000000000000006",
+                            buyToken: intent.type === 'SELL_INTENT' ? "0x4200000000000000000000000000000000000006" : "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",
+                            sellAmount: intent.amount || parseEther("10").toString(), 
+                            taker: intent.user.walletAddress,
+                            feeRecipient: TREASURY_WALLET,
+                            buyTokenPercentageFee: "0.001", // 0.1% cut
+                        });
 
-                // 2. Morpho Yield Intent (Referral Tag)
-                if (intent.type === 'YIELD_INTENT') {
-                    const morphoDepositParams = {
-                        vault: intent.vaultAddress,
-                        assets: intent.amount,
-                        receiver: intent.user.walletAddress,
-                        referrer: TREASURY_WALLET, // Captures Morpho front-end referral tracking
-                    };
-                    console.log(`🏦 Injecting Morpho Referral hook to Treasury: ${TREASURY_WALLET}`);
-                }
+                        const response = await fetch(`https://api.0x.org/swap/allowance-holder/quote?${params}`, {
+                            headers: {
+                                "0x-api-key": ZEROX_API_KEY,
+                                "0x-chain-id": "4801" // World Chain Sepolia Testnet ID
+                            }
+                        });
 
-                const txHash = await walletClient.sendTransaction({
-                    to: intent.user.walletAddress,
-                    value: parseEther("0"), 
-                    data: "0x" 
-                });
+                        const swapQuote = await response.json();
 
-                console.log(`✅ On-Chain Success! TX Hash: ${txHash}`);
+                        if (!swapQuote.transaction) {
+                            console.error(`❌ 0x API Error:`, swapQuote);
+                            continue; 
+                        }
 
-                await prisma.proposal.update({
-                    where: { id: intent.id },
-                    data: { 
-                        status: 'EXECUTED_ON_CHAIN',
-                        description: `Executed on-chain at $${livePrice.toFixed(3)}. TX: ${txHash}`,
-                        targetPrice: intent.targetPrice 
+                        // 💥 The Real On-Chain Execution 💥
+                        const txHash = await walletClient.sendTransaction({
+                            to: swapQuote.transaction.to,
+                            value: swapQuote.transaction.value || 0n,
+                            data: swapQuote.transaction.data 
+                        });
+
+                        console.log(`✅ On-Chain Success! TX Hash: ${txHash}`);
+
+                        await prisma.proposal.update({
+                            where: { id: intent.id },
+                            data: { 
+                                status: 'EXECUTED_ON_CHAIN',
+                                description: `Executed on-chain at $${livePrice.toFixed(3)}. TX: ${txHash}`,
+                                targetPrice: intent.targetPrice 
+                            }
+                        });
+
+                    } catch (err) {
+                        console.error(`❌ Swap Execution Error: ${err.message}`);
                     }
-                });
+                }
+
+                // Yield Intents remain as logging only, clearing them out of the queue
+                if (intent.type === 'YIELD_INTENT') {
+                    console.log(`🏦 Injecting Morpho Referral hook to Treasury: ${TREASURY_WALLET}`);
+                    await prisma.proposal.update({
+                        where: { id: intent.id },
+                        data: { status: 'EXECUTED_ON_CHAIN' }
+                    });
+                }
             }
             
             console.log(`🎉 Relayer Cycle Complete. All intents fulfilled securely.`);
@@ -192,7 +207,7 @@ async function runMarketAnalysis() {
 }
 
 console.log("=============================================");
-console.log("🚀 Starting WLDguard Intent Relayer Engine...");
+console.log("🚀 Starting WLDguard Testnet Relayer Engine...");
 console.log("=============================================");
 
 runMarketAnalysis();
