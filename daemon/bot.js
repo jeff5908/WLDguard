@@ -1,18 +1,32 @@
 import { PrismaClient } from '@prisma/client';
 import { createWalletClient, createPublicClient, http, parseEther } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
-import { worldchainSepolia } from 'viem/chains'; // 🔄 Switched to Testnet
+import { worldchain, worldchainSepolia } from 'viem/chains';
 
 const prisma = new PrismaClient();
 
-// 🚨 LIVE FIRE: Configure the Relayer Wallet
+// 🚨 Relayer Wallet Configuration
 const RELAYER_PRIVATE_KEY = process.env.RELAYER_PRIVATE_KEY;
 
-// 💰 REVENUE CAPTURE: WLDguard Treasury Address
-const TREASURY_WALLET = process.env.TREASURY_WALLET_ADDRESS || "0x0000000000000000000000000000000000000000"; 
-const ZEROX_API_KEY = process.env.ZEROX_API_KEY; // 🔑 Added API Key for Routing
+// 💰 Dynamic Treasury Address Resolution (supports both variable names)
+const TREASURY_WALLET = 
+    process.env.TREASURY_ADDRESS || 
+    process.env.TREASURY_WALLET_ADDRESS || 
+    "0x0000000000000000000000000000000000000000";
 
-// Fail gracefully with a clear message if Render can't find the key
+const ZEROX_API_KEY = process.env.ZEROX_API_KEY;
+
+// Network & Chain Routing Configuration
+const CHAIN_ID = process.env.CHAIN_ID || "480";
+const IS_MAINNET = CHAIN_ID === "480";
+const targetChain = IS_MAINNET ? worldchain : worldchainSepolia;
+const RPC_URL = process.env.RPC_URL || (IS_MAINNET ? "https://worldchain-mainnet.g.alchemy.com/public" : undefined);
+
+// Official Token Contracts on World Chain Mainnet (fallback to env if specified)
+const WLD_TOKEN = process.env.WLD_TOKEN_ADDRESS || "0x2cFc85d8E48F8EAB294be644d9E25C3030863003";
+const USDC_TOKEN = process.env.USDC_TOKEN_ADDRESS || "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1";
+
+// Validate Relayer Credentials
 if (!RELAYER_PRIVATE_KEY || !RELAYER_PRIVATE_KEY.startsWith('0x')) {
     console.error("🚨 CRITICAL ERROR: RELAYER_PRIVATE_KEY is missing or formatted incorrectly in Render!");
     console.error("Make sure the key is exactly RELAYER_PRIVATE_KEY and the value starts with 0x.");
@@ -22,14 +36,14 @@ if (!RELAYER_PRIVATE_KEY || !RELAYER_PRIVATE_KEY.startsWith('0x')) {
 const account = privateKeyToAccount(RELAYER_PRIVATE_KEY);
 
 const publicClient = createPublicClient({
-    chain: worldchainSepolia,
-    transport: http() // Viem automatically routes to the public Sepolia RPC
+    chain: targetChain,
+    transport: RPC_URL ? http(RPC_URL) : http()
 });
 
 const walletClient = createWalletClient({
     account,
-    chain: worldchainSepolia,
-    transport: http() 
+    chain: targetChain,
+    transport: RPC_URL ? http(RPC_URL) : http()
 });
 
 // --- Quant Math Functions ---
@@ -108,7 +122,7 @@ async function runMarketAnalysis() {
 
     if (!triggerHit) return; 
 
-    // --- LIVE FIRE: Intent Execution on World Chain Sepolia ---
+    // --- Intent Execution ---
     let retries = 3;
     while (retries > 0) {
         try {
@@ -125,29 +139,32 @@ async function runMarketAnalysis() {
                 return;
             }
 
-            console.log(`📡 Connecting to World Chain Sepolia... Routing ${activeIntents.length} payload(s) for execution...`);
+            console.log(`📡 Connecting to World Chain (Chain ID: ${CHAIN_ID})... Routing ${activeIntents.length} payload(s) for execution...`);
             
             for (const intent of activeIntents) {
                 console.log(`⚡ Executing Intent for Wallet: ${intent.user.walletAddress}`);
-                console.log(`🔐 Cryptographic Signature Verified: ${intent.signature.substring(0, 15)}...`);
+                console.log(`🔐 Cryptographic Signature Verified: ${intent.signature ? intent.signature.substring(0, 15) + '...' : 'NONE'}`);
 
                 if (intent.type === 'SELL_INTENT' || intent.type === 'BUY_INTENT') {
                     console.log(`💸 Injecting 0.1% Swap Fee logic to Treasury: ${TREASURY_WALLET}`);
                     
                     try {
+                        const sellTokenAddress = intent.type === 'SELL_INTENT' ? WLD_TOKEN : USDC_TOKEN;
+                        const buyTokenAddress = intent.type === 'SELL_INTENT' ? USDC_TOKEN : WLD_TOKEN;
+
                         const params = new URLSearchParams({
-                            sellToken: intent.type === 'SELL_INTENT' ? "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1" : "0x4200000000000000000000000000000000000006",
-                            buyToken: intent.type === 'SELL_INTENT' ? "0x4200000000000000000000000000000000000006" : "0x79A02482A880bCE3F13e09Da970dC34db4CD24d1",
-                            sellAmount: intent.amount || parseEther("10").toString(), 
+                            sellToken: sellTokenAddress,
+                            buyToken: buyTokenAddress,
+                            sellAmount: intent.amount || parseEther("1").toString(), 
                             taker: intent.user.walletAddress,
                             feeRecipient: TREASURY_WALLET,
-                            buyTokenPercentageFee: "0.001", // 0.1% cut
+                            buyTokenPercentageFee: "0.001", // 0.1% protocol cut
                         });
 
                         const response = await fetch(`https://api.0x.org/swap/allowance-holder/quote?${params}`, {
                             headers: {
                                 "0x-api-key": ZEROX_API_KEY,
-                                "0x-chain-id": "4801" // World Chain Sepolia Testnet ID
+                                "0x-chain-id": CHAIN_ID
                             }
                         });
 
@@ -158,10 +175,10 @@ async function runMarketAnalysis() {
                             continue; 
                         }
 
-                        // 💥 The Real On-Chain Execution 💥
+                        // On-Chain Execution
                         const txHash = await walletClient.sendTransaction({
                             to: swapQuote.transaction.to,
-                            value: swapQuote.transaction.value || 0n,
+                            value: swapQuote.transaction.value ? BigInt(swapQuote.transaction.value) : 0n,
                             data: swapQuote.transaction.data 
                         });
 
@@ -181,7 +198,6 @@ async function runMarketAnalysis() {
                     }
                 }
 
-                // Yield Intents remain as logging only, clearing them out of the queue
                 if (intent.type === 'YIELD_INTENT') {
                     console.log(`🏦 Injecting Morpho Referral hook to Treasury: ${TREASURY_WALLET}`);
                     await prisma.proposal.update({
@@ -207,7 +223,8 @@ async function runMarketAnalysis() {
 }
 
 console.log("=============================================");
-console.log("🚀 Starting WLDguard Testnet Relayer Engine...");
+console.log(`🚀 Starting WLDguard Relayer Engine (Chain ID: ${CHAIN_ID})...`);
+console.log(`🏛️ Active Treasury Target: ${TREASURY_WALLET}`);
 console.log("=============================================");
 
 runMarketAnalysis();
