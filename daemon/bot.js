@@ -153,20 +153,23 @@ async function runMarketAnalysis() {
                         const buyTokenAddress = intent.type === 'SELL_INTENT' ? USDC_TOKEN : WLD_TOKEN;
 
                         const params = new URLSearchParams({
-                            chainId: parseInt(CHAIN_ID), // <-- Mainnet Fix Kept
+                            chainId: parseInt(CHAIN_ID),
                             sellToken: sellTokenAddress,
                             buyToken: buyTokenAddress,
                             sellAmount: intent.amount || parseEther("1").toString(), 
                             taker: intent.user.walletAddress,
-                            feeRecipient: TREASURY_WALLET,
-                            buyTokenPercentageFee: "0.001", // 0.1% protocol cut
+                            
+                            // v2 Fee Parameters
+                            swapFeeRecipient: TREASURY_WALLET,
+                            swapFeeBps: "10", // 10 bps = 0.1%
+                            swapFeeToken: sellTokenAddress, // MUST match the sellToken
                         });
 
                         const response = await fetch(`https://api.0x.org/swap/allowance-holder/quote?${params}`, {
                             headers: {
                                 "0x-api-key": ZEROX_API_KEY || "",
                                 "0x-chain-id": CHAIN_ID,
-                                "0x-version": "v2" // <-- Mainnet Fix Kept
+                                "0x-version": "v2" 
                             }
                         });
 
