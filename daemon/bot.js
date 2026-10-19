@@ -75,7 +75,6 @@ async function runMarketAnalysis() {
 
     // 🔥 MAINNET TEST OVERRIDE: Forcing Execution Regardless of Market Stability
     console.log(`⚠️ OVERRIDE ACTIVE: Bypassing volatility check. Forcing execution for Mainnet 0x verification...`);
-    const action = 'TRIM_INTENT_REACHED'; 
 
     // --- Intent Execution ---
     let retries = 3;
@@ -94,7 +93,7 @@ async function runMarketAnalysis() {
                 return;
             }
 
-            console.log(`📡 Connecting to World Chain (Chain ID: ${CHAIN_ID})... Routing${activeIntents.length} payload(s) for execution...`);
+            console.log(`📡 Connecting to World Chain (Chain ID: ${CHAIN_ID})... Routing ${activeIntents.length} payload(s) for execution...`);
             
             for (const intent of activeIntents) {
                 console.log(`⚡ Executing Intent for Wallet: ${intent.user.walletAddress}`);
@@ -106,7 +105,6 @@ async function runMarketAnalysis() {
                     const sellTokenAddress = WLD_TOKEN;
                     const buyTokenAddress = USDC_TOKEN;
 
-                    // Setting precise amount: 3 WLD
                     const params = new URLSearchParams({
                         sellToken: sellTokenAddress,
                         buyToken: buyTokenAddress,
@@ -120,14 +118,13 @@ async function runMarketAnalysis() {
                         headers: {
                             "0x-api-key": ZEROX_API_KEY || "",
                             "0x-chain-id": CHAIN_ID,
-                            "0x-version": "v2" // REQUIRED for the new Allowance Holder endpoint
+                            "0x-version": "v2" 
                         }
                     });
 
-                    // Catch plain-text errors BEFORE trying to parse JSON
                     if (!response.ok) {
                         const errorText = await response.text();
-                        console.error(`❌ 0x API Rejected Request (Status ${response.status}):${errorText}`);
+                        console.error(`❌ 0x API Rejected Request (Status ${response.status}): ${errorText}`);
                         continue;
                     }
 
@@ -151,7 +148,7 @@ async function runMarketAnalysis() {
                         where: { id: intent.id },
                         data: { 
                             status: 'EXECUTED_ON_CHAIN',
-                            description: `Executed on-chain at $${livePrice.toFixed(3)}. TX:${txHash}`
+                            description: `Executed on-chain at $${livePrice.toFixed(3)}. TX: ${txHash}`
                         }
                     });
 
@@ -176,4 +173,10 @@ async function runMarketAnalysis() {
 }
 
 console.log("=============================================");
-console.log(`🚀 Starting WLDguard Relayer Engine (Chain ID: ${
+console.log(`🚀 Starting WLDguard Relayer Engine (Chain ID: ${CHAIN_ID})...`);
+console.log(`🏛️ Active Treasury Target: ${TREASURY_WALLET}`);
+console.log(`🚨 OVERRIDE MODE ENABLED 🚨`);
+console.log("=============================================");
+
+runMarketAnalysis();
+setInterval(runMarketAnalysis, 300000);
