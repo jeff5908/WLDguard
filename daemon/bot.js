@@ -106,6 +106,7 @@ async function runMarketAnalysis() {
                     const buyTokenAddress = USDC_TOKEN;
 
                     const params = new URLSearchParams({
+                        chainId: parseInt(CHAIN_ID),
                         sellToken: sellTokenAddress,
                         buyToken: buyTokenAddress,
                         sellAmount: parseEther("3").toString(), 
