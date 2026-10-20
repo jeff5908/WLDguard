@@ -6,17 +6,14 @@ export default function Home() {
   const [signature, setSignature] = useState<string | null>(null);
   const [debugLog, setDebugLog] = useState<string>("Ready. Press activate to sign.");
 
-  // --- DYNAMIC QUANT VARIABLES ---
-  // In production, these are fetched from your Node.js worker and wallet balance
   const liquidBalance = 142.8; 
-  const amountToProtect = liquidBalance * 0.5; // E.g., securing 50% of holdings
-  const bollingerTargetPrice = 2.45; // Simulated Upper Band Target
+  const amountToProtect = liquidBalance * 0.5;
+  const bollingerTargetPrice = 2.45;
   
   const signAlphaIntent = async () => {
     setDebugLog("Requesting Alpha Strategy authorization...");
 
     try {
-      // The signature string now dynamically injects the quant variables
       const intentString = 
 `WLDGUARD LIMIT ORDER
 --------------------
@@ -36,7 +33,6 @@ Expiration: 7 Days`;
           const apiRes = await fetch('/api/save-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // The database also saves the exact dynamic action
             body: JSON.stringify({
               intent_action: `Sell ${amountToProtect.toFixed(2)} WLD at $${bollingerTargetPrice}`,
               signature: capturedSig
@@ -50,14 +46,16 @@ Expiration: 7 Days`;
           } else {
             setDebugLog("DB Error: " + dbResult.error);
           }
-        } catch (dbErr: any) {
-          setDebugLog("Fetch Error: " + dbErr.message);
+        } catch (dbErr: unknown) {
+          const msg = dbErr instanceof Error ? dbErr.message : String(dbErr);
+          setDebugLog("Fetch Error: " + msg);
         }
       } else {
         setDebugLog("Wallet rejected: " + JSON.stringify(response));
       }
-    } catch (error: any) {
-      setDebugLog("Crash: " + error.message);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      setDebugLog("Crash: " + msg);
     }
   };
 
@@ -65,7 +63,6 @@ Expiration: 7 Days`;
     <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50">
       <div className="bg-white p-6 rounded-3xl shadow-md w-full max-w-md">
         
-        {/* Header section matching the core vision */}
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-bold text-black">WLDguard</h1>
           <span className="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded">
@@ -73,7 +70,6 @@ Expiration: 7 Days`;
           </span>
         </div>
 
-        {/* AI Recommendation Card */}
         <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-100">
           <p className="text-sm text-gray-500 mb-1">Alpha Strategy Proposed</p>
           <h2 className="text-lg font-semibold text-black mb-2">
@@ -93,6 +89,7 @@ Expiration: 7 Days`;
 
         <div className="mt-6 p-3 bg-gray-100 rounded-lg text-xs text-left text-gray-700 font-mono break-words">
           <span className="font-bold block mb-1 text-black">System Log:</span>
+          <br/>
           {debugLog}
         </div>
 
