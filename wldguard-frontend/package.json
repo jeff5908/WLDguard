@@ -20,10 +20,12 @@
     "@worldcoin/minikit-react": "^2.0.3",
     "clsx": "^2.1.1",
     "iconoir-react": "^7.11.0",
+    "lucide-react": "^1.60.0",
     "next": "^15.2.8",
     "next-auth": "^5.0.0-beta.25",
     "react": "^19.0.3",
     "react-dom": "^19.0.3",
+    "recharts": "^3.10.1",
     "tailwind-merge": "^3.2.0",
     "viem": "2.45.3"
   },
