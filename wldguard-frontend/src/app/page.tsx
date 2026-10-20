@@ -83,7 +83,6 @@ const AlphaChart = () => {
   );
 };
 
-// Strict TypeScript Interfaces for Vercel
 interface IntentData {
   type: string;
   targetPrice: string;
@@ -130,7 +129,6 @@ export default function Home() {
       const loadDashboardData = async () => {
         setIsFetchingBalances(true);
         try {
-          // Simulate network load for premium feel
           await new Promise(r => setTimeout(r, 600));
           setBalances({ liquid: 142.8, vault: 0, total: 142.8 });
         } catch (error) {
@@ -148,7 +146,6 @@ export default function Home() {
     setIsLoading(true);
     setAuthError("");
     try {
-      // Simulate smooth World ID auth process
       await new Promise(r => setTimeout(r, 1000));
       setShowTerms(true);
     } catch (error: unknown) {
@@ -190,7 +187,6 @@ export default function Home() {
     setIntentProposal(null);
 
     try {
-      // Simulate Quant Engine Forecasting
       await new Promise(r => setTimeout(r, 1500));
       setIntentProposal({
          type: 'SELL_INTENT',
@@ -210,6 +206,17 @@ export default function Home() {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
     setIsLoading(true);
     try {
+      // 1. Ask for Notification Permission to celebrate successes
+      try {
+        const permRes = await MiniKit.requestPermission({ permission: 'notifications' });
+        if (permRes?.data?.status === 'success') {
+           console.log("User opted into success notifications.");
+        }
+      } catch (e) {
+        console.log("Notification prompt handled or skipped.");
+      }
+
+      // 2. Proceed with the Signature
       const intentString = 
 `WLDGUARD LIMIT ORDER
 --------------------
@@ -223,7 +230,6 @@ Expiration: 7 Days`;
       if (response?.data?.status === "success") {
         const capturedSig = response.data.signature;
         
-        // Send real signature to Neon Database via our Next.js API route
         const apiRes = await fetch('/api/save-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -261,7 +267,6 @@ Expiration: 7 Days`;
   return (
     <main className="flex min-h-screen flex-col items-center bg-slate-950 text-white font-sans p-4">
       
-      {/* Global Header */}
       <div className="w-full max-w-md mx-auto pt-2 pb-4 flex justify-between items-center">
         <div className="flex flex-col">
           <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
@@ -287,7 +292,6 @@ Expiration: 7 Days`;
 
       <div className="w-full max-w-md w-full">
         
-        {/* STATE 1: THE STOREFRONT */}
         {!showTerms && !isVerified && (
           <div className="animate-in fade-in duration-500 flex flex-col items-center">
             <div className="w-full">
@@ -342,7 +346,6 @@ Expiration: 7 Days`;
           </div>
         )}
 
-        {/* STATE 2: TERMS OF SERVICE */}
         {showTerms && !isVerified && (
            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-300">
@@ -385,7 +388,6 @@ Expiration: 7 Days`;
            </div>
         )}
 
-        {/* STATE 3: THE PRIVATE DASHBOARD */}
         {isVerified && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-5">
             
